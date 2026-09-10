@@ -29,13 +29,13 @@ export async function POST() {
     | Parameters<typeof upsertLeadFromQuote>[1][]
     | undefined;
 
-  if (result.json.errors || !quotes) {
-    console.error("Jobber sync query failed:", error);
-    return NextResponse.json(
-      { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
-      { status: 502 }
-    );
-  }
+    if (result.json.errors || !quotes) {
+      console.error("Jobber sync query failed:", JSON.stringify(result.json.errors, null, 2));
+      return NextResponse.json(
+        { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
+        { status: 502 }
+      );
+    }
 
   let imported = 0;
   let skipped = 0;
