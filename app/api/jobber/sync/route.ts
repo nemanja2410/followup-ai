@@ -29,8 +29,8 @@ export async function POST() {
     | Parameters<typeof upsertLeadFromQuote>[1][]
     | undefined;
 
-    if (result.json.errors || !quotes) {
-      console.error("Jobber sync query failed:", JSON.stringify(result.json.errors, null, 2));
+    iif (result.json.errors || !quotes) {
+      console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
       return NextResponse.json(
         { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
         { status: 502 }
