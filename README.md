@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FollowUp AI
 
-## Getting Started
+Follow up on **Jobber** quotes before they go cold. After three days, open quotes show as due. AI drafts a short email. **You** click send.
 
-First, run the development server:
+## What it does
+
+1. Sign up and connect Jobber
+2. Import (or receive) sent quotes
+3. Quotes still waiting after 72 hours become **follow-up due**
+4. Draft → edit → send via Resend
+
+It does **not** auto-email clients, sync Gmail, or charge via Stripe yet.
+
+## Run locally
 
 ```bash
+npm install
+cp .env.example .env.local
+# fill in the values (see below)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy names from `.env.example`. You need:
 
-## Learn More
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser-safe anon key (RLS must stay on) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only — Jobber tokens, webhooks, cron |
+| `GEMINI_API_KEY` | Drafts |
+| `RESEND_API_KEY` | Sending |
+| `RESEND_FROM_EMAIL` | Optional. Default is Resend’s test sender |
+| `JOBBER_CLIENT_ID` / `JOBBER_CLIENT_SECRET` | Jobber OAuth |
+| `NEXT_PUBLIC_JOBBER_CLIENT_ID` | Optional; connect uses the server id |
+| `JOBBER_WEBHOOK_SECRET` | Optional; Jobber signs webhooks with the client secret |
+| `CRON_SECRET` | Protects `/api/cron/process-followups` |
 
-To learn more about Next.js, take a look at the following resources:
+Never commit `.env.local`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+In the Supabase SQL editor, run `supabase/schema.sql`. That creates `profiles`, `integrations`, and `leads` with row-level security.
 
-## Deploy on Vercel
+Auth → URL configuration: add `http://localhost:3000/auth/callback` (and your production URL later).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Jobber
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+In the Jobber developer app:
+
+- OAuth callback: `http://localhost:3000/api/auth/jobber/callback`
+- Scopes: quotes read, clients read
+- Webhook (needs a public URL, e.g. production or a tunnel): `https://YOUR-DOMAIN/api/webhooks/jobber` for `QUOTE_SENT` (and `QUOTE_APPROVED` / `APP_DISCONNECT` if available)
+
+On localhost, use **Import from Jobber** on the dashboard. Jobber cannot reach `localhost` for webhooks.
+
+## Email
+
+Until you verify a domain in Resend, sends often only work to the email on your Resend account. Put that address on a test quote first.
+
+## Deploy (launch)
+
+Production is Vercel. **Hourly cron may need a paid Vercel plan.** The dashboard still marks quotes due when you open it, so the product works on Hobby without cron.
+
+### 1. Put this code on Vercel
+
+GitHub still has the old app. Either:
+
+- Ask me to **commit and push** `main`, then import/reconnect [nemanja2410/followup-ai](https://github.com/nemanja2410/followup-ai) in Vercel, or
+- From this folder: `npx vercel --prod` (deploys your local files)
+
+### 2. Environment variables in Vercel
+
+Project → Settings → Environment Variables → add every key from `.env.example` (Production). Use the **same** Supabase project you tested locally. Generate a long random `CRON_SECRET`.
+
+Redeploy after saving env vars.
+
+### 3. Supabase Auth URLs
+
+Authentication → URL configuration:
+
+- Site URL: `https://YOUR-VERCEL-DOMAIN`
+- Redirect URLs:  
+  `https://YOUR-VERCEL-DOMAIN/auth/callback`  
+  `http://localhost:3000/auth/callback`
+
+### 4. Jobber developer app
+
+Add production URLs (keep localhost for local work):
+
+- OAuth callback: `https://YOUR-VERCEL-DOMAIN/api/auth/jobber/callback`
+- Webhook: `https://YOUR-VERCEL-DOMAIN/api/webhooks/jobber`  
+  Topics: `QUOTE_SENT`, plus `QUOTE_APPROVED` and `APP_DISCONNECT` if listed
+
+### 5. First real loop
+
+1. Open the production site, sign in
+2. Connect Jobber
+3. **Import from Jobber** (or send a quote in Jobber and wait for the webhook)
+4. If the quote is newer than 3 days, it stays **Waiting**. To test **due** immediately, in Supabase set that row’s `quote_sent_at` to four days ago, then refresh the dashboard
+5. Draft follow-up → Send
+6. Status should become **Followed up**
+7. Confirm the email (Resend test sender often only delivers to your Resend login inbox)
+
+Do not add Stripe or auto-send until that loop works once on production.
+

@@ -1,442 +1,204 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const CheckIcon = () => (
-  <svg className="w-5 h-5 text-zinc-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
+function PreviewRow({
+  name,
+  amount,
+  age,
+  due,
+}: {
+  name: string;
+  amount: string;
+  age: string;
+  due?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-zinc-100 px-4 py-3 last:border-0">
+      <div>
+        <p className="text-sm font-medium text-zinc-900">{name}</p>
+        <p className="text-xs text-zinc-500">{age}</p>
+      </div>
+      <div className="flex items-center gap-3">
+        <p className="text-sm font-medium tabular-nums text-zinc-900">{amount}</p>
+        {due ? (
+          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+            Follow-up due
+          </span>
+        ) : (
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
+            Waiting
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function LandingPage() {
-  const [currencySymbol, setCurrencySymbol] = useState("$");
-  const [detectedLang, setDetectedLang] = useState("en");
-  const [utmSource, setUtmSource] = useState("direct");
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [leadEmail, setLeadEmail] = useState("");
-  const [popupSubmitted, setPopupSubmitted] = useState(false);
-
-  useEffect(() => {
-    const lang = navigator.language || "en-US";
-    if (lang.startsWith("fr")) setDetectedLang("fr");
-    else if (lang.startsWith("es")) setDetectedLang("es");
-    else if (lang.startsWith("it")) setDetectedLang("it");
-    else setDetectedLang("en");
-
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz.includes("Europe")) setCurrencySymbol("€");
-    else if (tz.includes("London")) setCurrencySymbol("£");
-    else setCurrencySymbol("$");
-
-    const params = new URLSearchParams(window.location.search);
-    const source = params.get("utm_source");
-    if (source) setUtmSource(source);
-
-    const timer = setTimeout(() => {
-      setIsPopupOpen(true);
-    }, 60000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const getHeadline = () => {
-    if (utmSource === "reddit") return "Stop losing freelance leads because you forgot to check in.";
-    if (utmSource === "paid") return "Turn cold leads into booked meetings with AI-assisted follow-ups.";
-    return "Close more leads without manually tracking who to email next.";
-  };
-
   return (
-    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-white selection:text-black antialiased">
-      {/* ━━━━━━━━━━━━━━━━━━━━ NAVIGATION ━━━━━━━━━━━━━━━━━━━━ */}
-      <header className="border-b border-zinc-900 sticky top-0 z-40 bg-black/90 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="font-bold text-lg tracking-tight text-white">Followup AI</div>
+    <div className="min-h-screen bg-[#F3F1EC] text-zinc-900">
+      <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-[#F3F1EC]/90 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-[11px] font-semibold text-white">
+              F
+            </div>
+            <span className="text-sm font-semibold tracking-tight">FollowUp AI</span>
+          </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="hidden sm:block text-sm text-zinc-400 hover:text-white transition">
+            <Link href="/login" className="text-sm text-zinc-500 hover:text-zinc-900">
               Sign in
             </Link>
             <Link
-              href="/dashboard"
-              className="bg-white text-black text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-zinc-200 transition min-h-[44px] flex items-center"
+              href="/login?mode=signup"
+              className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-800"
             >
-              Get started for free
+              Get started
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━ HERO SECTION ━━━━━━━━━━━━━━━━━━━━ */}
       <main>
-        <section className="pt-16 pb-12 md:pt-24 md:pb-20 px-4 sm:px-6 max-w-5xl mx-auto text-center flex flex-col items-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight max-w-4xl text-white leading-[1.1]">
-            {getHeadline()}
+        <section className="mx-auto max-w-5xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">For Jobber businesses</p>
+          <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl sm:leading-[1.1]">
+            Follow up on sent quotes before they go cold.
           </h1>
-          <p className="mt-6 text-lg md:text-xl text-zinc-400 max-w-2xl leading-relaxed">
-            Followup AI helps consultants and independent professionals track their leads, draft personalized follow-ups with AI, and send them from one simple dashboard.
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-600">
+            FollowUp AI watches quotes you already sent in Jobber. After three days with no reply, it puts them in a
+            queue, drafts a short email, and you click send.
           </p>
-          <div className="mt-8 w-full sm:w-auto">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/dashboard"
-              className="flex items-center justify-center w-full sm:w-auto bg-white text-black font-semibold px-8 py-4 rounded-xl hover:bg-zinc-200 transition text-base md:text-lg min-h-[44px]"
+              href="/login?mode=signup"
+              className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
             >
-              Get started for free
+              Create a free account
             </Link>
-            <p className="mt-4 text-xs text-zinc-500">No credit card required.</p>
+            <p className="text-sm text-zinc-500">No credit card. You approve every email.</p>
           </div>
 
-          {/* Hero Product UI Preview Mockup */}
-          <div className="mt-12 w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-2xl p-2 sm:p-4 shadow-2xl overflow-hidden text-left">
-            <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 sm:p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-900 mb-4">
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Recent Leads</span>
+          <div className="mt-14 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Needs attention</p>
+            </div>
+            <PreviewRow name="Sarah Jenkins" amount="$12,500" age="Sent 5 days ago" due />
+            <PreviewRow name="Marcus Thorne" amount="$8,200" age="Sent 3 days ago" due />
+            <PreviewRow name="Elena Rostova" amount="$3,400" age="Sent yesterday" />
+          </div>
+        </section>
+
+        <section className="border-t border-zinc-200/80">
+          <div className="mx-auto grid max-w-5xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium text-zinc-400">1</p>
+              <h2 className="mt-2 text-base font-semibold">Connect Jobber</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                Sign in and connect your Jobber account. Sent quotes show up in FollowUp AI.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-400">2</p>
+              <h2 className="mt-2 text-base font-semibold">See who is due</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                After three days, an open quote moves to follow-up due — with the estimate amount and how long it has
+                been sitting.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-400">3</p>
+              <h2 className="mt-2 text-base font-semibold">Draft, edit, send</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                AI writes a short check-in. You edit it. You send it. Nothing goes out without you.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-zinc-200/80">
+          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight">What this is — and is not</h2>
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                <p className="text-sm font-medium text-zinc-900">Built for</p>
+                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
+                  <li>Home-service teams that already send quotes in Jobber</li>
+                  <li>Owners who lose work because the follow-up never happened</li>
+                  <li>A simple queue: due, draft, send</li>
+                </ul>
               </div>
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-900/50 rounded-lg border border-zinc-800/50 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-white">Ana Marković</p>
-                    <p className="text-xs text-zinc-400">ana@example.com</p>
-                  </div>
-                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
-                    <span className="text-xs bg-yellow-500/10 text-yellow-500 px-2.5 py-1 rounded-full border border-yellow-500/20 whitespace-nowrap">
-                      Pending Follow-up
-                    </span>
-                    <button className="bg-zinc-800 text-white text-xs px-3 py-1.5 rounded-lg border border-zinc-700 min-h-[44px] sm:min-h-0 pointer-events-none">
-                      Send AI Message
-                    </button>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                <p className="text-sm font-medium text-zinc-900">Not built for</p>
+                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
+                  <li>Auto-sending emails to clients without your click</li>
+                  <li>Gmail sync, calendars, lead scoring, or sales-team drip campaigns</li>
+                  <li>Replacing Jobber — it only helps with quotes you already sent</li>
+                </ul>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ━━━━━━━━━━━━━━━━━━━━ PROBLEM SECTION ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-5xl mx-auto border-t border-zinc-900">
-          <div className="max-w-2xl mx-auto mb-16 text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Your leads aren't rejecting you. They're just falling off your radar.</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-zinc-900/30 border border-zinc-800/80 p-6 rounded-2xl">
-              <h3 className="font-semibold text-white text-base mb-3">The "I'll email them later" trap</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">You finish a great consultation, promise to touch base next month, and then get busy. By the time you remember, they've hired someone else.</p>
-            </div>
-            <div className="bg-zinc-900/30 border border-zinc-800/80 p-6 rounded-2xl">
-              <h3 className="font-semibold text-white text-base mb-3">Spreadsheet anxiety</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">You waste mental energy staring at rows of names, trying to remember what you last spoke about and who actually needs an email today.</p>
-            </div>
-            <div className="bg-zinc-900/30 border border-zinc-800/80 p-6 rounded-2xl">
-              <h3 className="font-semibold text-white text-base mb-3">Staring at a blank draft</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">Even when you remember to follow up, you spend 15 minutes overthinking how to sound casual but professional in the check-in email.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ━━━━━━━━━━━━━━━━━━━━ BEFORE / AFTER ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-5xl mx-auto border-t border-zinc-900">
-          <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
-            <div className="bg-zinc-950 border border-red-500/20 p-6 sm:p-8 rounded-2xl">
-              <h3 className="text-red-400 font-semibold mb-6 text-sm uppercase tracking-wider">The Old Way</h3>
-              <ul className="space-y-4 text-sm text-zinc-400">
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✕</span> 
-                  Relying on memory or messy notes to know who to email.
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✕</span> 
-                  Overthinking the perfect email draft for 20 minutes.
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✕</span> 
-                  Losing thousands in potential revenue to silence.
-                </li>
-              </ul>
-            </div>
-            <div className="bg-zinc-950 border border-emerald-500/20 p-6 sm:p-8 rounded-2xl">
-              <h3 className="text-emerald-400 font-semibold mb-6 text-sm uppercase tracking-wider">With Followup AI</h3>
-              <ul className="space-y-4 text-sm text-zinc-300">
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span> 
-                  One clean dashboard showing exactly who needs attention.
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span> 
-                  AI instantly drafts a context-aware message based on their status.
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span> 
-                  Review the draft and click send without leaving the app.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* ━━━━━━━━━━━━━━━━━━━━ HOW IT WORKS ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-5xl mx-auto border-t border-zinc-900 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-16">It is literally this simple.</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-4">
-              <div className="text-5xl font-extrabold text-zinc-800 mb-6">1</div>
-              <h3 className="font-semibold text-white text-lg mb-3">Add the lead</h3>
-              <p className="text-sm text-zinc-400">Drop their name and email into your secure Supabase dashboard.</p>
-            </div>
-            <div className="p-4">
-              <div className="text-5xl font-extrabold text-zinc-800 mb-6">2</div>
-              <h3 className="font-semibold text-white text-lg mb-3">Click Generate</h3>
-              <p className="text-sm text-zinc-400">Gemini AI reads their status and instantly drafts a natural check-in message.</p>
-            </div>
-            <div className="p-4">
-              <div className="text-5xl font-extrabold text-zinc-800 mb-6">3</div>
-              <h3 className="font-semibold text-white text-lg mb-3">Click Send</h3>
-              <p className="text-sm text-zinc-400">Review the draft, hit send, and the email is delivered via Resend API.</p>
-            </div>
-          </div>
-          <div className="mt-12">
-             <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center bg-white text-black font-semibold px-8 py-4 rounded-xl hover:bg-zinc-200 transition text-base min-h-[44px]"
+        <section className="border-t border-zinc-200/80">
+          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight">Pricing</h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-600">
+              FollowUp AI is free while we are in early access. No paid plans yet — we will not charge you without a
+              clear upgrade.
+            </p>
+            <Link
+              href="/login?mode=signup"
+              className="mt-6 inline-flex rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
             >
-              Get started for free
+              Get started free
             </Link>
           </div>
         </section>
 
-        {/* ━━━━━━━━━━━━━━━━━━━━ BUILT FOR SPEED ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-5xl mx-auto border-t border-zinc-900">
-          <div className="text-center mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Everything you need. Nothing you don't.</h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto text-sm leading-relaxed">
-              Followup AI is stripped down to the absolute essentials, running on premium infrastructure so you can focus on your clients, not the software.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl">
-              <div className="w-12 h-12 rounded-xl bg-zinc-800/50 border border-zinc-700 flex items-center justify-center text-xl mb-4">⚡</div>
-              <h3 className="text-sm font-semibold text-white mb-2">Lightning-fast AI</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">Powered by Gemini API, personalized drafts are generated almost instantly so you never have to wait.</p>
+        <section className="border-t border-zinc-200/80">
+          <div className="mx-auto max-w-5xl space-y-8 px-4 py-16 sm:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight">Questions</h2>
+            <div>
+              <h3 className="text-sm font-medium text-zinc-900">Will it email my clients by itself?</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                No. The app marks quotes as due and drafts a message. Sending always takes your click.
+              </p>
             </div>
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl">
-              <div className="w-12 h-12 rounded-xl bg-zinc-800/50 border border-zinc-700 flex items-center justify-center text-xl mb-4">🔒</div>
-              <h3 className="text-sm font-semibold text-white mb-2">Secure Database</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">Your leads are safely stored in a dedicated PostgreSQL database powered by Supabase.</p>
+            <div>
+              <h3 className="text-sm font-medium text-zinc-900">Whose inbox does the email come from?</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                Emails are sent through Resend. Until you verify your own domain, delivery may be limited (often only
+                to your own address). We do not connect Gmail.
+              </p>
             </div>
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl">
-              <div className="w-12 h-12 rounded-xl bg-zinc-800/50 border border-zinc-700 flex items-center justify-center text-xl mb-4">✉️</div>
-              <h3 className="text-sm font-semibold text-white mb-2">Direct Delivery</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">Emails are delivered reliably and securely via the Resend API straight to your client's inbox.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ━━━━━━━━━━━━━━━━━━━━ PRICING ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto border-t border-zinc-900">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
-              Never lose a lead because you forgot to follow up.
-            </h2>
-            <p className="text-sm text-zinc-400">
-              Choose the plan that fits your workflow. Start free, upgrade when your follow-up volume grows.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
-            
-            {/* STARTER TIER */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8 flex flex-col h-full hover:border-zinc-700 transition duration-300">
-              <div className="mb-6">
-                <h3 className="text-xs font-bold tracking-widest text-zinc-400 uppercase mb-2">Starter</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">{currencySymbol}29</span>
-                  <span className="text-sm font-medium text-zinc-500">/ month</span>
-                </div>
-                <p className="text-sm text-zinc-400 mt-4">For solo users and light usage.</p>
-              </div>
-              
-              <Link href="/dashboard" className="w-full flex items-center justify-center bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800 rounded-xl py-3.5 text-sm font-semibold transition mb-8">
-                Start Free
-              </Link>
-              
-              <ul className="space-y-4 text-sm text-zinc-300 flex-1">
-                <li className="flex items-start gap-3"><CheckIcon /> Up to 100 active leads</li>
-                <li className="flex items-start gap-3"><CheckIcon /> AI-generated follow-ups</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Email follow-up sequences</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Lead pipeline</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Gmail integration</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Basic analytics</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Basic AI personalization</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Standard support</li>
-              </ul>
-            </div>
-
-            {/* PRO TIER (MOST POPULAR) */}
-            <div className="bg-zinc-900/50 border border-zinc-600 rounded-3xl p-8 flex flex-col h-full relative transform lg:-translate-y-4 shadow-2xl shadow-zinc-900/50">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-[10px] font-bold uppercase tracking-widest py-1.5 px-4 rounded-full">
-                Most Popular
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="text-xs font-bold tracking-widest text-white uppercase mb-2">Pro</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">{currencySymbol}49</span>
-                  <span className="text-sm font-medium text-zinc-400">/ month</span>
-                </div>
-                <p className="text-sm text-zinc-300 mt-4">AI runs your follow-up process.</p>
-              </div>
-              
-              <Link href="/dashboard" className="w-full flex items-center justify-center bg-white text-black hover:bg-zinc-200 rounded-xl py-3.5 text-sm font-semibold transition shadow-sm mb-8">
-                Start Free
-              </Link>
-              
-              <ul className="space-y-4 text-sm text-zinc-200 flex-1">
-                <li className="flex items-start gap-3"><CheckIcon /> <strong>Up to 500 active leads</strong></li>
-                <li className="flex items-start gap-3"><CheckIcon /> Everything in Starter</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Advanced AI follow-ups</li>
-                <li className="flex items-start gap-3"><CheckIcon /> AI analysis of previous conversations</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Automatic follow-up timing</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Custom workflows</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Multiple follow-up sequences</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Calendar integration</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Lead scoring</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Advanced analytics</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Higher AI usage limits</li>
-              </ul>
-            </div>
-
-            {/* BUSINESS TIER */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8 flex flex-col h-full hover:border-zinc-700 transition duration-300">
-              <div className="mb-6">
-                <h3 className="text-xs font-bold tracking-widest text-zinc-400 uppercase mb-2">Business</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">{currencySymbol}99</span>
-                  <span className="text-sm font-medium text-zinc-500">/ month</span>
-                </div>
-                <p className="text-sm text-zinc-400 mt-4">For businesses and teams with higher volume.</p>
-              </div>
-              
-              <Link href="/dashboard" className="w-full flex items-center justify-center bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800 rounded-xl py-3.5 text-sm font-semibold transition mb-8">
-                Start Free
-              </Link>
-              
-              <ul className="space-y-4 text-sm text-zinc-300 flex-1">
-                <li className="flex items-start gap-3"><CheckIcon /> <strong>High-volume / unlimited leads</strong></li>
-                <li className="flex items-start gap-3"><CheckIcon /> Everything in Pro</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Multiple team members</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Team inbox</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Advanced automations</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Priority AI processing</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Advanced lead scoring</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Custom workflows</li>
-                <li className="flex items-start gap-3"><CheckIcon /> API / integrations</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Priority support</li>
-                <li className="flex items-start gap-3"><CheckIcon /> Highest AI usage limits</li>
-              </ul>
-            </div>
-
-          </div>
-        </section>
-
-        {/* ━━━━━━━━━━━━━━━━━━━━ FAQ ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-3xl mx-auto border-t border-zinc-900">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-12">Answers to your questions</h2>
-          <div className="space-y-4">
-            <div className="bg-zinc-900/20 border border-zinc-800/60 p-6 rounded-xl">
-              <h3 className="font-semibold text-white text-base mb-2">Will the emails sound like a generic robot?</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">No. We use Gemini AI to draft concise messages based on the specific status you assign to the lead. The draft appears in a modal where you can review and edit it before sending.</p>
-            </div>
-            <div className="bg-zinc-900/20 border border-zinc-800/60 p-6 rounded-xl">
-              <h3 className="font-semibold text-white text-base mb-2">Do I need to connect my own email server?</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">No complex SMTP setup is required. The system leverages the Resend API to securely deliver messages directly to your client's inbox.</p>
-            </div>
-            <div className="bg-zinc-900/20 border border-zinc-800/60 p-6 rounded-xl">
-              <h3 className="font-semibold text-white text-base mb-2">Is my client data safe?</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">Your data is stored securely in a dedicated PostgreSQL database powered by Supabase, protected by industry-standard encryption protocols.</p>
-            </div>
-            <div className="bg-zinc-900/20 border border-zinc-800/60 p-6 rounded-xl">
-              <h3 className="font-semibold text-white text-base mb-2">Can I export my leads?</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">Yes, because your database runs on Supabase, you have full ownership and access to your raw data at any time.</p>
+            <div>
+              <h3 className="text-sm font-medium text-zinc-900">What data do you store?</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                Your login, Jobber connection tokens, and quote details needed to follow up (name, email, amount,
+                status). See the{" "}
+                <Link href="/privacy" className="underline underline-offset-4">
+                  privacy note
+                </Link>
+                .
+              </p>
             </div>
           </div>
-        </section>
-
-        {/* ━━━━━━━━━━━━━━━━━━━━ WHO THIS IS NOT FOR ━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="py-20 px-4 sm:px-6 max-w-3xl mx-auto border-t border-zinc-900 text-center">
-          <h2 className="text-xl font-bold text-white mb-4">Who this is NOT for</h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            If you run a 20-person sales team and need automated drip sequences, this is the wrong tool. Followup AI is a manual-trigger assistant, built specifically for consultants and independent professionals who just want a reliable system to stop forgetting to email people.
-          </p>
         </section>
       </main>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━ FOOTER ━━━━━━━━━━━━━━━━━━━━ */}
-      <footer className="border-t border-zinc-900 bg-black pt-16 pb-8 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-lg font-bold tracking-tight text-white">Followup AI</p>
-              <p className="text-xs text-zinc-500 mt-1 max-w-xs">A focused AI follow-up tool for independent professionals.</p>
-            </div>
-          </div>
-          <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center bg-zinc-900 text-white border border-zinc-800 font-medium px-6 py-3 rounded-lg hover:bg-zinc-800 transition text-sm min-h-[44px]"
-            >
-              Get started for free
+      <footer className="border-t border-zinc-200/80">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-8 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>© {new Date().getFullYear()} FollowUp AI</p>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="hover:text-zinc-800">
+              Privacy
+            </Link>
+            <Link href="/login" className="hover:text-zinc-800">
+              Sign in
             </Link>
           </div>
         </div>
-        
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-zinc-600 border-t border-zinc-900/50 pt-8">
-          <div>Support available in dashboard</div>
-          <div>&copy; {new Date().getFullYear()} Followup AI. All rights reserved.</div>
-        </div>
       </footer>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━ EXIT INTENT POPUP ━━━━━━━━━━━━━━━━━━━━ */}
-      {isPopupOpen && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full relative shadow-2xl">
-            <button
-              onClick={() => setIsPopupOpen(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Close modal"
-            >
-              ✕
-            </button>
-            <h3 className="text-lg font-bold text-white mb-2">Wait, before you go.</h3>
-            <p className="text-sm text-zinc-400 mb-6">Get our free 1-page playbook on how independent consultants use simple follow-ups to close 30% more deals.</p>
-            {popupSubmitted ? (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-sm text-center">
-                Check your inbox!
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setPopupSubmitted(true);
-                }}
-                className="space-y-3"
-              >
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  value={leadEmail}
-                  onChange={(e) => setLeadEmail(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white min-h-[44px] focus:outline-none focus:border-zinc-600"
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-white text-black font-semibold py-3 rounded-lg text-sm hover:bg-zinc-200 transition min-h-[44px]"
-                >
-                  Get the free playbook
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

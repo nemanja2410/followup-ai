@@ -1,85 +1,104 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
+import {
+  GET_QUOTE_QUERY,
+  clearIntegrationByAccountId,
+  jobberGraphqlWithRefresh,
+  loadIntegrationByAccountId,
+  upsertLeadFromQuote,
+} from "@/lib/jobber";
 
-export async function POST(request: Request) {
+function verifyWithSecret(payload: string, signature: string, secret: string) {
+  const digest = crypto.createHmac("sha256", secret).update(payload).digest("base64");
+  const a = Buffer.from(digest);
+  const b = Buffer.from(signature);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function verifyJobberWebhook(payload: string, signature: string) {
+  const secrets = [process.env.JOBBER_CLIENT_SECRET, process.env.JOBBER_WEBHOOK_SECRET].filter(
+    (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index
+  );
+
+  return secrets.some((secret) => verifyWithSecret(payload, signature, secret));
+}
+
+function extractWebhookEvent(body: Record<string, unknown>) {
+  const nested = body?.data as { webHookEvent?: Record<string, unknown> } | undefined;
+  const event =
+    nested?.webHookEvent ||
+    (body?.webHookEvent as Record<string, unknown> | undefined) ||
+    {};
+
+  return {
+    topic: String(event.topic || "").toUpperCase(),
+    itemId: String(event.itemId || ""),
+    accountId: event.accountId ? String(event.accountId) : null,
+  };
+}
+
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const topic = body?.data?.webHookEvent?.topic;
-    const itemId = body?.data?.webHookEvent?.itemId;
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-jobber-hmac-sha256");
 
-    if (!topic || !itemId) {
+    if (!signature || !verifyJobberWebhook(rawBody, signature)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody) as Record<string, unknown>;
+    const { topic, itemId, accountId } = extractWebhookEvent(body);
+
+    if (!topic) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    console.log(`\n🔔 [1/4] WEBHOOK PRIMLJEN! Quote ID: ${itemId}`);
-
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: integration, error: dbError } = await supabaseAdmin
-      .from("integrations")
-      .select("user_id, jobber_access_token")
-      .not("jobber_access_token", "is", null)
-      .limit(1)
-      .single();
-
-    if (dbError || !integration) {
-      console.error("❌ [2/4] GREŠKA U BAZI: Nema aktivnog tokena.", dbError);
+    if (topic === "APP_DISCONNECT") {
+      if (accountId) await clearIntegrationByAccountId(accountId);
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    console.log("✅ [2/4] Token pronađen. Vučem podatke sa Jobbera...");
+    const isQuoteSent = topic.includes("QUOTE") && topic.includes("SENT");
+    const isQuoteApproved = topic.includes("QUOTE") && topic.includes("APPROVED");
 
-    // ISPRAVKA: Direktno ubacujemo itemId u string upita, bez varijabli
-    const jobberResponse = await fetch("https://api.getjobber.com/api/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${integration.jobber_access_token}`,
-        "X-JOBBER-GRAPHQL-VERSION": "2026-07-27"
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            quote(id: "${itemId}") {
-              quoteNumber
-              client { name }
-              amounts { total }
-            }
-          }
-        `
-      })
+    if (!isQuoteSent && !isQuoteApproved) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    if (!itemId || !accountId) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    const integration = await loadIntegrationByAccountId(accountId);
+    if (!integration) {
+      console.error("Webhook: no matching Jobber integration for account", accountId);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    const jobberData = await jobberGraphqlWithRefresh(integration, GET_QUOTE_QUERY, {
+      id: itemId,
     });
 
-    const jobberData = await jobberResponse.json();
-    console.log("🔍 [3/4] ODGOVOR JOBBERA:", JSON.stringify(jobberData, null, 2));
+    const quote = (jobberData.json.data as { quote?: Parameters<typeof upsertLeadFromQuote>[1] } | undefined)
+      ?.quote;
 
-    const quoteInfo = jobberData?.data?.quote;
+    if (!quote) {
+      console.error("Webhook: Jobber quote fetch failed", jobberData.json);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
 
-    if (quoteInfo) {
-      console.log(`✅ [4/4] Spremam u bazu: #${quoteInfo.quoteNumber} za ${quoteInfo.client.name}`);
-      const { error } = await supabaseAdmin.from("leads").insert([
-        {
-          user_id: integration.user_id,
-          name: quoteInfo.client.name,
-          email: "klijent@primer.com",
-          status: "Pending Follow-up",
-          notes: `Automatski uvezeno sa Jobbera. Predračun #${quoteInfo.quoteNumber} u iznosu od $${quoteInfo.amounts.total}.`
-        }
-      ]);
+    const outcome = await upsertLeadFromQuote(integration.user_id, quote, {
+      forceStatus: isQuoteApproved ? "won" : "open",
+    });
 
-      if (error) console.error("❌ GREŠKA PRI UPISU U BAZU:", error);
-      else console.log("🚀 LEAD JE USPEŠNO UBAČEN U DASHBOARD!");
-    } else {
-      console.error("❌ [4/4] Jobber nije vratio Quote podatke! Pogledaj log iznad.");
+    if (outcome.error) {
+      console.error("Webhook: lead upsert failed", outcome.error);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
-
   } catch (error) {
-    console.error("❌ KRITIČNA GREŠKA:", error);
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+    console.error("Webhook handler failed:", error);
+    return NextResponse.json({ received: true }, { status: 200 });
   }
 }
