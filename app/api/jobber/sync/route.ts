@@ -30,7 +30,7 @@ export async function POST() {
     | undefined;
 
   if (result.json.errors || !quotes) {
-    console.error("Jobber sync query failed:", result.json.errors);
+    console.error("Jobber sync query failed:", error);
     return NextResponse.json(
       { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
       { status: 502 }
