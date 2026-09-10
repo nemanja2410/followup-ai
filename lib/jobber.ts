@@ -23,6 +23,8 @@ export const GET_QUOTE_QUERY = `
       amounts { total }
       client {
         name
+        firstName
+        lastName
         emails {
           address
         }
@@ -33,15 +35,41 @@ export const GET_QUOTE_QUERY = `
 
 export const LIST_QUOTES_QUERY = `
   query ListQuotes {
-    quotes(first: 25) {
+    quotes(first: 50, sort: { key: CREATED_AT, direction: DESCENDING }) {
       nodes {
         id
         quoteNumber
         quoteStatus
         sentAt
+        createdAt
         amounts { total }
         client {
           name
+          firstName
+          lastName
+          emails {
+            address
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const LIST_QUOTES_QUERY_FALLBACK = `
+  query ListQuotes {
+    quotes(first: 50) {
+      nodes {
+        id
+        quoteNumber
+        quoteStatus
+        sentAt
+        createdAt
+        amounts { total }
+        client {
+          name
+          firstName
+          lastName
           emails {
             address
           }
@@ -208,14 +236,17 @@ export async function clearIntegrationByAccountId(accountId: string) {
     .eq("jobber_account_id", accountId);
 }
 
-type JobberQuote = {
+export type JobberQuote = {
   id?: string;
   quoteNumber?: string;
   quoteStatus?: string;
   sentAt?: string | null;
+  createdAt?: string | null;
   amounts?: { total?: number | string | null };
   client?: {
     name?: string;
+    firstName?: string;
+    lastName?: string;
     emails?: { nodes?: { address?: string }[] } | { address?: string }[];
   };
 };
@@ -223,8 +254,19 @@ type JobberQuote = {
 export function firstClientEmail(client: JobberQuote["client"]) {
   const emails = client?.emails;
   if (!emails) return null;
-  if (Array.isArray(emails)) return emails[0]?.address || null;
-  return emails.nodes?.[0]?.address || null;
+  if (Array.isArray(emails)) {
+    const address = emails[0]?.address;
+    return typeof address === "string" && address.trim() ? address.trim() : null;
+  }
+  const address = emails.nodes?.[0]?.address;
+  return typeof address === "string" && address.trim() ? address.trim() : null;
+}
+
+function clientDisplayName(client: JobberQuote["client"]) {
+  const name = client?.name?.trim();
+  if (name) return name;
+  const combined = [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
+  return combined || "Unknown client";
 }
 
 function quoteValue(total: unknown) {
@@ -273,8 +315,8 @@ export async function upsertLeadFromQuote(
 
   const row: Record<string, unknown> = {
     user_id: userId,
-    jobber_quote_id: jobberQuoteId,
-    client_name: quote.client?.name || "Unknown client",
+    jobber_quote_id: String(jobberQuoteId),
+    client_name: clientDisplayName(quote.client),
     client_email: firstClientEmail(quote.client),
     quote_value: quoteValue(quote.amounts?.total),
     status,
@@ -284,13 +326,35 @@ export async function upsertLeadFromQuote(
   if (quote.sentAt) {
     row.quote_sent_at = quote.sentAt;
   } else if (!existing) {
-    row.quote_sent_at = new Date().toISOString();
+    row.quote_sent_at = quote.createdAt || new Date().toISOString();
   }
 
-  const { error } = await admin.from("leads").upsert(row, {
-    onConflict: "user_id,jobber_quote_id",
-  });
+  const { data, error } = await admin
+    .from("leads")
+    .upsert(row, { onConflict: "user_id,jobber_quote_id" })
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: error.message };
-  return { ok: true, status };
+  if (error) {
+    console.error("Supabase insert error:", error);
+    if (error.code === "42P10") {
+      const inserted = await admin.from("leads").insert(row).select("id").maybeSingle();
+      if (inserted.error) {
+        console.error("Supabase insert error:", inserted.error);
+        return { error: inserted.error.message };
+      }
+      if (!inserted.data?.id) {
+        return { error: "Insert returned no row. Check service role key and leads columns." };
+      }
+      return { ok: true, status, created: true };
+    }
+    return { error: error.message };
+  }
+
+  if (!data?.id) {
+    console.error("Supabase insert error: upsert returned no row", row);
+    return { error: "Upsert returned no row. Check SUPABASE_SERVICE_ROLE_KEY and RLS." };
+  }
+
+  return { ok: true, status, created: !existing };
 }

@@ -183,9 +183,13 @@ export default function Dashboard() {
         return;
       }
       showToast(
-        data.imported === 0
-          ? "No new sent quotes to import."
-          : `Imported ${data.imported} quote${data.imported === 1 ? "" : "s"}.`,
+        data.imported === 0 && data.updated > 0
+          ? `Jobber quotes were already in FollowUp AI (${data.updated} updated). Draft quotes are skipped until sent.`
+          : data.imported === 0
+            ? data.skipped
+              ? `No new sent quotes. ${data.skipped} draft(s) skipped until you send them in Jobber.`
+              : "No new sent quotes to import."
+            : `Imported ${data.imported} new quote${data.imported === 1 ? "" : "s"}.`,
         "success"
       );
       await fetchLeads();
@@ -617,7 +621,7 @@ export default function Dashboard() {
                 />
               )}
               <p className="mt-3 text-xs leading-relaxed text-zinc-400">
-                Edit anything that sounds off. This sends from FollowUp AI, not your Jobber inbox.
+                Edit anything that sounds off. Replies go to your FollowUp AI login email, not Jobber.
               </p>
             </div>
 

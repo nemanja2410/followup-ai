@@ -9,12 +9,20 @@ export default function Settings() {
   const router = useRouter();
   const supabase = createClient();
   const [jobberConnected, setJobberConnected] = useState(false);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    setWebhookUrl(`${window.location.origin}/api/webhooks/jobber`);
+    supabase.auth.getUser().then(({ data }) => {
+      setAccountEmail(data.user?.email ?? null);
+    });
     fetch("/api/jobber/status")
       .then((res) => res.json())
       .then((data) => setJobberConnected(Boolean(data.connected)))
       .catch(() => setJobberConnected(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -32,7 +40,9 @@ export default function Settings() {
 
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 text-sm text-zinc-500">Account and Jobber. Billing is not enabled yet.</p>
+        <p className="mt-2 text-sm text-zinc-500">
+          Jobber, sending, and webhooks. No billing yet — get one real quote loop working first.
+        </p>
 
         <section className="mt-8 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-medium text-zinc-900">Jobber</h2>
@@ -52,10 +62,37 @@ export default function Settings() {
         </section>
 
         <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
+          <h2 className="text-sm font-medium text-zinc-900">Webhook (so you stop clicking Import)</h2>
+          <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+            In the Jobber developer app, add this URL for <span className="font-medium text-zinc-700">QUOTE_SENT</span>.
+            Jobber cannot reach localhost — this only works on your Vercel domain.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <code className="flex-1 truncate rounded-lg bg-[#F3F1EC] px-3 py-2 text-xs text-zinc-700">
+              {webhookUrl || "…"}
+            </code>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!webhookUrl) return;
+                await navigator.clipboard.writeText(webhookUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-medium text-zinc-900">Sending email</h2>
           <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-            Follow-ups send through Resend when you click Send. Until a sending domain is verified, messages may only
-            arrive at the inbox tied to your Resend account. We do not offer Stripe billing or Gmail sync yet.
+            Mail goes out through Resend when you click Send. Client replies go to{" "}
+            <span className="font-medium text-zinc-700">{accountEmail || "your login email"}</span>.
+            Verify your own domain in Resend so customers actually receive the first send (the test sender often only
+            delivers to your Resend inbox).
           </p>
         </section>
 

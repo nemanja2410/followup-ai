@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const data = await resend.emails.send({
       from,
       to: email,
+      replyTo: user.email ?? undefined,
       subject: `Checking in regarding your estimate${name ? `, ${name}` : ""}`,
       text: message,
     });

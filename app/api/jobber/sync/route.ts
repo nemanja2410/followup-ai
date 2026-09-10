@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   LIST_QUOTES_QUERY,
+  LIST_QUOTES_QUERY_FALLBACK,
   jobberGraphqlWithRefresh,
   loadIntegrationByUserId,
   mapQuoteStatus,
   upsertLeadFromQuote,
+  type JobberQuote,
 } from "@/lib/jobber";
 
 export async function POST() {
@@ -18,42 +21,84 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY" },
+      { status: 500 }
+    );
+  }
+
+  getSupabaseAdmin();
+
   const integration = await loadIntegrationByUserId(user.id);
   if (!integration) {
     return NextResponse.json({ error: "Jobber not connected" }, { status: 401 });
   }
 
-  const result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY);
-  const quotes = (result.json.data as { quotes?: { nodes?: unknown[] } } | undefined)?.quotes
-    ?.nodes as
-    | Parameters<typeof upsertLeadFromQuote>[1][]
-    | undefined;
+  let result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY);
+  if (result.json.errors) {
+    console.error("Jobber sorted query failed, retrying without sort:", result.json.errors);
+    result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY_FALLBACK);
+  }
+  const quotes = (result.json.data as { quotes?: { nodes?: JobberQuote[] } } | undefined)?.quotes
+    ?.nodes;
 
-    if (result.json.errors || !quotes) {
-      console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
-      return NextResponse.json(
-        { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
-        { status: 502 }
-      );
-    }
+  if (result.json.errors || !quotes) {
+    console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
+    return NextResponse.json(
+      { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
+      { status: 502 }
+    );
+  }
 
   let imported = 0;
+  let updated = 0;
   let skipped = 0;
+  const failures: string[] = [];
 
   for (const quote of quotes) {
     if (mapQuoteStatus(quote.quoteStatus) === "skip") {
       skipped += 1;
       continue;
     }
+
     const outcome = await upsertLeadFromQuote(user.id, quote);
     if (outcome.error) {
-      console.error("Quote import failed:", outcome.error);
-    } else if (outcome.skipped) {
+      console.error("Supabase insert error:", outcome.error, {
+        jobberQuoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+      });
+      failures.push(outcome.error);
+      continue;
+    }
+    if (outcome.skipped) {
       skipped += 1;
-    } else {
+    } else if (outcome.created) {
       imported += 1;
+    } else {
+      updated += 1;
     }
   }
 
-  return NextResponse.json({ success: true, imported, skipped, total: quotes.length });
+  if (failures.length > 0) {
+    return NextResponse.json(
+      {
+        error: failures[0],
+        imported,
+        updated,
+        skipped,
+        failed: failures.length,
+        total: quotes.length,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    imported,
+    updated,
+    skipped,
+    total: quotes.length,
+  });
 }
