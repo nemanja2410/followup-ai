@@ -29,7 +29,7 @@ export async function POST() {
     | Parameters<typeof upsertLeadFromQuote>[1][]
     | undefined;
 
-    iif (result.json.errors || !quotes) {
+    if (result.json.errors || !quotes) {
       console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
       return NextResponse.json(
         { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
