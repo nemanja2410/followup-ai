@@ -1,202 +1,326 @@
 import Link from "next/link";
-
-function PreviewRow({
-  name,
-  amount,
-  age,
-  due,
-}: {
-  name: string;
-  amount: string;
-  age: string;
-  due?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-zinc-100 px-4 py-3 last:border-0">
-      <div>
-        <p className="text-sm font-medium text-zinc-900">{name}</p>
-        <p className="text-xs text-zinc-500">{age}</p>
-      </div>
-      <div className="flex items-center gap-3">
-        <p className="text-sm font-medium tabular-nums text-zinc-900">{amount}</p>
-        {due ? (
-          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
-            Follow-up due
-          </span>
-        ) : (
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
-            Waiting
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+import { BrandMark } from "@/components/landing/brand-mark";
+import { PrimaryCta, SIGN_UP_HREF } from "@/components/landing/cta-link";
+import { DashboardPreview } from "@/components/landing/dashboard-preview";
+import { FaqItem } from "@/components/landing/faq-item";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#F3F1EC] text-zinc-900">
+      {/* ===== Header ===== */}
       <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-[#F3F1EC]/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-[11px] font-semibold text-white">
-              F
-            </div>
-            <span className="text-sm font-semibold tracking-tight">FollowUp AI</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm text-zinc-500 hover:text-zinc-900">
-              Sign in
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" aria-label="FollowUp AI home">
+            <BrandMark />
+          </Link>
+          <nav className="flex items-center gap-3 sm:gap-6">
+            <Link
+              href="#how-it-works"
+              className="hidden min-h-11 items-center whitespace-nowrap text-sm text-zinc-500 hover:text-zinc-900 md:inline-flex"
+            >
+              How it works
             </Link>
             <Link
-              href="/login?mode=signup"
-              className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+              href="#pricing"
+              className="hidden min-h-11 items-center whitespace-nowrap text-sm text-zinc-500 hover:text-zinc-900 md:inline-flex"
             >
-              Get started
+              Pricing
             </Link>
-          </div>
+            <Link
+              href="#faq"
+              className="hidden min-h-11 items-center whitespace-nowrap text-sm text-zinc-500 hover:text-zinc-900 sm:inline-flex"
+            >
+              FAQ
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex min-h-11 items-center whitespace-nowrap text-sm text-zinc-500 hover:text-zinc-900"
+            >
+              Sign in
+            </Link>
+            <span className="hidden sm:inline-flex">
+              <PrimaryCta>Create a free account</PrimaryCta>
+            </span>
+          </nav>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto max-w-5xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">For Jobber businesses</p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl sm:leading-[1.1]">
-            Follow up on sent quotes before they go cold.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-600">
-            FollowUp AI watches quotes you already sent in Jobber. After three days with no reply, it puts them in a
-            queue, drafts a short email, and you click send.
+        {/* ===== Hero ===== */}
+        <section className="mx-auto max-w-6xl px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-14">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+            For HVAC, plumbing, electrical, and similar shops
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link
-              href="/login?mode=signup"
-              className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
-            >
-              Create a free account
+          <h1 className="mt-3 max-w-3xl text-[2rem] font-semibold tracking-tight text-zinc-900 sm:text-5xl sm:leading-[1.12]">
+            Stop losing jobs you already quoted.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+            You already have the lead. You already sent the estimate. FollowUp AI shows which Jobber quotes still need a
+            check-in, drafts a short email, and waits for you to send it.
+          </p>
+          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
+            <PrimaryCta>Create a free account</PrimaryCta>
+            <Link href="#how-it-works" className="inline-flex min-h-11 items-center text-sm text-zinc-500 underline-offset-4 hover:text-zinc-900 hover:underline">
+              See how it works
             </Link>
-            <p className="text-sm text-zinc-500">No credit card. You approve every email.</p>
           </div>
+          <p className="mt-3 text-sm text-zinc-500">No credit card. You approve every email.</p>
 
-          <div className="mt-14 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <div className="border-b border-zinc-100 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Needs attention</p>
-            </div>
-            <PreviewRow name="Sarah Jenkins" amount="$12,500" age="Sent 5 days ago" due />
-            <PreviewRow name="Marcus Thorne" amount="$8,200" age="Sent 3 days ago" due />
-            <PreviewRow name="Elena Rostova" amount="$3,400" age="Sent yesterday" />
+          <div className="mt-8 sm:mt-12">
+            <DashboardPreview />
+            <p className="mt-3 text-center text-xs text-zinc-400">Product preview — the real queue looks like this after you import sent quotes.</p>
           </div>
         </section>
 
-        <section className="border-t border-zinc-200/80">
-          <div className="mx-auto grid max-w-5xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-3">
-            <div>
-              <p className="text-xs font-medium text-zinc-400">1</p>
-              <h2 className="mt-2 text-base font-semibold">Connect Jobber</h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Sign in and connect your Jobber account. Sent quotes show up in FollowUp AI.
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-zinc-400">2</p>
-              <h2 className="mt-2 text-base font-semibold">See who is due</h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                After three days, an open quote moves to follow-up due — with the estimate amount and how long it has
-                been sitting.
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-zinc-400">3</p>
-              <h2 className="mt-2 text-base font-semibold">Draft, edit, send</h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                AI writes a short check-in. You edit it. You send it. Nothing goes out without you.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-zinc-200/80">
-          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight">What this is — and is not</h2>
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
-              <div className="rounded-xl border border-zinc-200 bg-white p-6">
-                <p className="text-sm font-medium text-zinc-900">Built for</p>
-                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
-                  <li>Home-service teams that already send quotes in Jobber</li>
-                  <li>Owners who lose work because the follow-up never happened</li>
-                  <li>A simple queue: due, draft, send</li>
-                </ul>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-white p-6">
-                <p className="text-sm font-medium text-zinc-900">Not built for</p>
-                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
-                  <li>Auto-sending emails to clients without your click</li>
-                  <li>Gmail sync, calendars, lead scoring, or sales-team drip campaigns</li>
-                  <li>Replacing Jobber — it only helps with quotes you already sent</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-zinc-200/80">
-          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight">Pricing</h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-600">
-              FollowUp AI is free while we are in early access. No paid plans yet — we will not charge you without a
-              clear upgrade.
+        {/* ===== Problem ===== */}
+        <section id="problem" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">
+              The job did not die. The follow-up never happened.
+            </h2>
+            <ol className="mt-10 max-w-xl space-y-4 text-base leading-relaxed text-zinc-600">
+              <li>A lead comes in.</li>
+              <li>You send the quote.</li>
+              <li>They say they will think about it.</li>
+              <li>The day fills with calls, trucks, and the next estimate.</li>
+              <li>Nobody follows up.</li>
+            </ol>
+            <p className="mt-8 max-w-xl text-base leading-relaxed text-zinc-600">
+              That is not a sales process problem. It is a busy-week problem. The quote is still sitting there.
             </p>
-            <Link
-              href="/login?mode=signup"
-              className="mt-6 inline-flex rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
-            >
-              Get started free
-            </Link>
           </div>
         </section>
 
+        {/* ===== Before / after ===== */}
+        <section id="product" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Before and after</h2>
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Before</p>
+                <p className="mt-3 text-lg font-semibold text-zinc-900">Quotes go quiet after you send them.</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+                  The estimate is in Jobber. You remember some of them. Others sit until the customer has already hired
+                  someone else — or you assume they were not interested.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-zinc-900 bg-zinc-900 p-6 text-white sm:p-8">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">After</p>
+                <p className="mt-3 text-lg font-semibold">Follow-ups sit in one queue you can actually work.</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                  Sent quotes show up with the amount and how long they have been waiting. After three days they are
+                  marked follow-up due. You open a draft, edit it, and send it yourself.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== How it works ===== */}
+        <section id="how-it-works" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Three steps to get started</h2>
+            <p className="mt-3 max-w-xl text-base text-zinc-600">
+              Nothing emails a customer until you click Send.
+            </p>
+            <div className="mt-10 grid gap-8 md:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium text-zinc-400">1</p>
+                <h3 className="mt-2 text-base font-semibold">Connect Jobber</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Sign in and connect Jobber. Sent quotes import into FollowUp AI. You can also add one by hand while
+                  you try it.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-400">2</p>
+                <h3 className="mt-2 text-base font-semibold">See who needs a follow-up</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Open quotes wait three days. Then they move to follow-up due, with the estimate amount and how long it
+                  has been sitting.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-400">3</p>
+                <h3 className="mt-2 text-base font-semibold">Draft, edit, send</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  A short check-in is written for that quote. You change anything that sounds off. You send it. Replies
+                  go to your login email.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== Outcomes ===== */}
+        <section id="outcomes" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">What you get</h2>
+            <ul className="mt-10 grid gap-6 sm:grid-cols-2">
+              <li className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="font-semibold text-zinc-900">Keep sent quotes from disappearing</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Due and waiting quotes sit in one list instead of only in Jobber and your memory.
+                </p>
+              </li>
+              <li className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="font-semibold text-zinc-900">Spend less time figuring out what to say</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Open a draft built from the client name and estimate. Edit it before it goes out.
+                </p>
+              </li>
+              <li className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="font-semibold text-zinc-900">Stay organized after you send estimates</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  See who is due, who is still waiting, and who you already followed up with.
+                </p>
+              </li>
+              <li className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="font-semibold text-zinc-900">Give more prospects a reason to reply</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  A short check-in is often the difference between a quiet quote and a conversation. We do not promise
+                  they will hire you.
+                </p>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        {/* ===== Who it's for / not for ===== */}
+        <section id="who" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Built for shops that live on quotes</h2>
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
+                <h3 className="text-base font-semibold text-zinc-900">Who this is for</h3>
+                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
+                  <li>HVAC businesses that send Jobber estimates</li>
+                  <li>Plumbing businesses that wait on approvals</li>
+                  <li>Electrical businesses with open quotes sitting in a busy week</li>
+                  <li>Other small service shops that already use Jobber for quotes</li>
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
+                <h3 className="text-base font-semibold text-zinc-900">Who this is not for</h3>
+                <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-600">
+                  <li>Teams that do not follow up on leads or quotes</li>
+                  <li>Anyone looking for a full CRM or Jobber replacement</li>
+                  <li>Companies that need auto-send, drip campaigns, or sales-team automation</li>
+                  <li>Shops that do not use Jobber and do not want to add quotes by hand</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== Pricing ===== */}
+        <section id="pricing" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Pricing</h2>
+            <div className="mt-10 max-w-md rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Early access</p>
+              <p className="mt-3 text-3xl font-semibold tracking-tight">Free</p>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+                FollowUp AI is free while we are in early access. There are no paid plans yet. We will not charge you
+                without a clear upgrade.
+              </p>
+              <ul className="mt-6 space-y-2 text-sm text-zinc-600">
+                <li>Includes Jobber connect and quote import</li>
+                <li>Includes a due queue after three days</li>
+                <li>Includes drafts you edit and send yourself</li>
+              </ul>
+              <PrimaryCta className="mt-8">Create a free account</PrimaryCta>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== FAQ ===== */}
+        <section id="faq" className="scroll-mt-20 border-t border-zinc-200/80">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Questions owners usually ask</h2>
+            <div className="mt-8 max-w-3xl">
+              <FaqItem question="Who is FollowUp AI for?">
+                Small service businesses that send quotes in Jobber — HVAC, plumbing, electrical, and similar
+                owner-operated shops. If follow-up is the part that slips when the week gets busy, this is for you.
+              </FaqItem>
+              <FaqItem question="What does FollowUp AI actually do?">
+                It imports sent Jobber quotes, marks open ones as follow-up due after three days, writes a short email
+                draft, and lets you send it. You can also add a quote by hand.
+              </FaqItem>
+              <FaqItem question="Does it replace Jobber or my CRM?">
+                No. It does not replace Jobber, and it is not a CRM. It only helps you follow up on quotes you already
+                sent.
+              </FaqItem>
+              <FaqItem question="Do I need to change how I currently get leads?">
+                No. Keep taking calls and sending estimates the way you do now. FollowUp AI works after the quote is
+                sent.
+              </FaqItem>
+              <FaqItem question="How does the draft help with follow-ups?">
+                When you click Draft follow-up, a short check-in is written from the client name and estimate details.
+                You can rewrite any of it. Sending always takes your click.
+              </FaqItem>
+              <FaqItem question="Can I use it for quote follow-ups?">
+                Yes. That is the whole product: sent Jobber quotes, a due list, and an email you approve.
+              </FaqItem>
+              <FaqItem question="How much does it cost?">
+                It is free during early access. There is no paid plan and no credit card to create an account.
+              </FaqItem>
+            </div>
+            <p className="mt-8 max-w-2xl text-sm leading-relaxed text-zinc-500">
+              Emails go out through Resend. Until you verify your own sending domain, delivery can be limited. FollowUp
+              AI does not connect Gmail. See the{" "}
+              <Link href="/privacy" className="underline underline-offset-4 hover:text-zinc-800">
+                privacy note
+              </Link>{" "}
+              for what we store.
+            </p>
+          </div>
+        </section>
+
+        {/* ===== Final CTA ===== */}
         <section className="border-t border-zinc-200/80">
-          <div className="mx-auto max-w-5xl space-y-8 px-4 py-16 sm:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight">Questions</h2>
-            <div>
-              <h3 className="text-sm font-medium text-zinc-900">Will it email my clients by itself?</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                No. The app marks quotes as due and drafts a message. Sending always takes your click.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-zinc-900">Whose inbox does the email come from?</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Emails are sent through Resend. Until you verify your own domain, delivery may be limited (often only
-                to your own address). We do not connect Gmail.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-zinc-900">What data do you store?</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Your login, Jobber connection tokens, and quote details needed to follow up (name, email, amount,
-                status). See the{" "}
-                <Link href="/privacy" className="underline underline-offset-4">
-                  privacy note
-                </Link>
-                .
-              </p>
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 className="max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">
+              Put last week&apos;s quiet quotes back in front of you.
+            </h2>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-600">
+              Create an account, connect Jobber, and work the due list. You still decide what goes to the customer.
+            </p>
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
+              <PrimaryCta>Create a free account</PrimaryCta>
+              <Link href="/login" className="inline-flex min-h-11 items-center text-sm text-zinc-500 underline-offset-4 hover:text-zinc-900 hover:underline">
+                I already have an account
+              </Link>
             </div>
           </div>
         </section>
       </main>
 
+      {/* ===== Footer ===== */}
       <footer className="border-t border-zinc-200/80">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-8 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>© {new Date().getFullYear()} FollowUp AI</p>
-          <div className="flex gap-4">
-            <Link href="/privacy" className="hover:text-zinc-800">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6">
+          <BrandMark />
+          <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-zinc-500">
+            <Link href="#product" className="inline-flex min-h-11 items-center hover:text-zinc-800">
+              Product
+            </Link>
+            <Link href="#pricing" className="inline-flex min-h-11 items-center hover:text-zinc-800">
+              Pricing
+            </Link>
+            <Link href="#faq" className="inline-flex min-h-11 items-center hover:text-zinc-800">
+              FAQ
+            </Link>
+            <Link href="/privacy" className="inline-flex min-h-11 items-center hover:text-zinc-800">
               Privacy
             </Link>
-            <Link href="/login" className="hover:text-zinc-800">
+            <Link href="/login" className="inline-flex min-h-11 items-center hover:text-zinc-800">
               Sign in
             </Link>
-          </div>
+            <Link href={SIGN_UP_HREF} className="inline-flex min-h-11 items-center hover:text-zinc-800">
+              Create account
+            </Link>
+          </nav>
+          <p className="text-xs text-zinc-400">© {new Date().getFullYear()} FollowUp AI</p>
         </div>
       </footer>
     </div>
