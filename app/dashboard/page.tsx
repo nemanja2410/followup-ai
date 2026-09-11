@@ -254,7 +254,20 @@ export default function Dashboard() {
           quoteValue: lead.quote_value,
         }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setAiMessage("");
+        if (response.status === 401) {
+          showToast("Your session expired. Sign in again.", "error");
+        } else if (response.status === 503) {
+          showToast("The draft service is busy. Try again in a moment.", "error");
+        } else {
+          showToast("Could not generate a draft. Try again.", "error");
+        }
+        return;
+      }
+
       setAiMessage(data.message || "Could not generate a draft.");
     } catch {
       setAiMessage("");
@@ -264,19 +277,17 @@ export default function Dashboard() {
     }
   };
 
+  // POPRAVLJENA FUNKCIJA OVDJE
   const handleSendEmail = async () => {
     if (!activeLead) return;
-    if (!activeLead.client_email) {
-      showToast("This quote has no email address.", "error");
-      return;
-    }
-
+    
     setIsSending(true);
     try {
       const response = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          leadId: activeLead.id,
           email: activeLead.client_email,
           name: activeLead.client_name,
           message: aiMessage,
@@ -284,6 +295,12 @@ export default function Dashboard() {
       });
 
       const data = await response.json();
+      if (response.status === 409) {
+        showToast(data.error || "This quote is no longer waiting on a follow-up. Refresh the list.", "error");
+        setIsPanelOpen(false);
+        fetchLeads();
+        return;
+      }
       if (response.ok && data.success) {
         await supabase
           .from("leads")
@@ -323,11 +340,10 @@ export default function Dashboard() {
     <div className="min-h-screen">
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-sm ${
-            toast.type === "success"
-              ? "border-emerald-200 bg-white text-emerald-900"
-              : "border-red-200 bg-white text-red-800"
-          }`}
+          className={`fixed top-4 right-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-sm ${toast.type === "success"
+            ? "border-emerald-200 bg-white text-emerald-900"
+            : "border-red-200 bg-white text-red-800"
+            }`}
         >
           {toast.message}
         </div>
@@ -443,18 +459,16 @@ export default function Dashboard() {
             <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
               <button
                 onClick={() => setFilter("attention")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  filter === "attention" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
-                }`}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${filter === "attention" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                  }`}
               >
                 Needs attention
                 <span className="ml-1.5 text-zinc-400">{attentionLeads.length}</span>
               </button>
               <button
                 onClick={() => setFilter("all")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  filter === "all" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
-                }`}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${filter === "all" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                  }`}
               >
                 All quotes
                 <span className="ml-1.5 text-zinc-400">{leads.length}</span>
@@ -511,11 +525,10 @@ export default function Dashboard() {
                         {canDraft(lead.status) ? (
                           <button
                             onClick={() => handleDraftFollowup(lead)}
-                            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                              lead.status === "due"
-                                ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                                : "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
-                            }`}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${lead.status === "due"
+                              ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                              : "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+                              }`}
                           >
                             {lead.status === "followed_up" ? "Draft again" : "Draft follow-up"}
                           </button>
