@@ -111,7 +111,7 @@ function tokenLooksExpired(expiresAt: string | null) {
   return new Date(expiresAt).getTime() - 60_000 <= Date.now();
 }
 
-function isAuthFailure(result: GraphqlResult) {
+export function isJobberAuthFailure(result: GraphqlResult) {
   if (result.status === 401) return true;
   const message = JSON.stringify(result.json.errors || "");
   return /invalid token|unauthorized|expired/i.test(message);
@@ -185,7 +185,7 @@ export async function jobberGraphqlWithRefresh(
 
   let result = await jobberGraphql(integration.jobber_access_token, query, variables);
 
-  if (isAuthFailure(result)) {
+  if (isJobberAuthFailure(result)) {
     const refreshed = await refreshJobberAccessToken(integration);
     if (refreshed) {
       result = await jobberGraphql(refreshed, query, variables);

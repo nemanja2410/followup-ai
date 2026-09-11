@@ -102,6 +102,7 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [jobberConnected, setJobberConnected] = useState(false);
+  const [jobberNeedsReconnect, setJobberNeedsReconnect] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [filter, setFilter] = useState<QueueFilter>("attention");
 
@@ -164,6 +165,7 @@ export default function Dashboard() {
       const response = await fetch("/api/jobber/status");
       const data = await response.json();
       setJobberConnected(Boolean(data.connected));
+      if (!data.connected) setJobberNeedsReconnect(false);
     } catch {
       setJobberConnected(false);
     }
@@ -179,9 +181,15 @@ export default function Dashboard() {
       const response = await fetch("/api/jobber/sync", { method: "POST" });
       const data = await response.json();
       if (!response.ok) {
-        showToast(data.error || "Could not import quotes.", "error");
+        if (data.reconnect || response.status === 401) {
+          setJobberNeedsReconnect(true);
+          showToast("Jobber login expired. Reconnect, then import again.", "error");
+        } else {
+          showToast(data.error || "Could not import quotes.", "error");
+        }
         return;
       }
+      setJobberNeedsReconnect(false);
       showToast(
         data.imported === 0 && data.updated > 0
           ? `Jobber quotes were already in FollowUp AI (${data.updated} updated). Draft quotes are skipped until sent.`
@@ -280,7 +288,11 @@ export default function Dashboard() {
   // POPRAVLJENA FUNKCIJA OVDJE
   const handleSendEmail = async () => {
     if (!activeLead) return;
-    
+    if (!activeLead.client_email?.trim()) {
+      showToast("This quote has no email address.", "error");
+      return;
+    }
+
     setIsSending(true);
     try {
       const response = await fetch("/api/send-email", {
@@ -359,10 +371,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {jobberConnected ? (
+            {jobberConnected && !jobberNeedsReconnect ? (
               <span className="hidden items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200 sm:inline-flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Jobber connected
+              </span>
+            ) : jobberNeedsReconnect ? (
+              <span className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200 sm:inline-flex">
+                Jobber needs reconnect
               </span>
             ) : null}
             <Link href="/settings" className="text-sm text-zinc-500 transition hover:text-zinc-900">
@@ -401,7 +417,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {jobberConnected && (
+            {jobberConnected && !jobberNeedsReconnect && (
               <button
                 onClick={handleImportQuotes}
                 disabled={isSyncing}
@@ -419,7 +435,25 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {!jobberConnected && (
+        {jobberNeedsReconnect && (
+          <div className="mb-8 flex flex-col gap-3 rounded-xl border border-amber-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">Jobber needs to be reconnected</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Import failed because Jobber would not accept this login. Reconnect, then import again. Existing quotes
+                in FollowUp AI are unchanged.
+              </p>
+            </div>
+            <button
+              onClick={handleConnectJobber}
+              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+            >
+              Reconnect Jobber
+            </button>
+          </div>
+        )}
+
+        {!jobberConnected && !jobberNeedsReconnect && (
           <div className="mb-8 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-zinc-900">Connect Jobber to fill this list</p>
@@ -639,9 +673,17 @@ export default function Dashboard() {
             </div>
 
             <div className="border-t border-zinc-100 px-6 py-4">
+              {!activeLead.client_email?.trim() ? (
+                <p className="mb-3 text-sm text-amber-800">
+                  This quote has no email address. Add one in Jobber (or add the quote manually with an email), then
+                  try again. Send stays off until there is an address.
+                </p>
+              ) : null}
               <button
                 onClick={handleSendEmail}
-                disabled={isGenerating || isSending || !aiMessage || !activeLead.client_email}
+                disabled={
+                  isGenerating || isSending || !aiMessage || !activeLead.client_email?.trim()
+                }
                 className="w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isSending ? "Sending…" : "Send follow-up"}

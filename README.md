@@ -1,15 +1,22 @@
 # FollowUp AI
 
-Follow up on **Jobber** quotes before they go cold. After three days, open quotes show as due. AI drafts a short email. **You** click send.
+Follow up on **Jobber** quotes before they go cold.
 
-## What it does
+**You** always click send. The app never emails a customer on its own.
 
-1. Sign up and connect Jobber
-2. Import (or receive) sent quotes
-3. Quotes still waiting after 72 hours become **follow-up due**
-4. Draft → edit → send via Resend
+## How it works
 
-It does **not** auto-email clients, sync Gmail, or charge via Stripe yet.
+1. Sign up
+2. Connect Jobber
+3. Sent quotes appear in FollowUp AI (import, or Jobber webhook on a public URL)
+4. Quotes still open after **72 hours** become **follow-up due**
+5. AI drafts a short email
+6. You review and edit
+7. You send via Resend (replies go to your login email)
+
+## What it is not
+
+It does not auto-send, sync Gmail, or replace Jobber. Billing (Stripe Checkout) lives in Settings and is optional — the dashboard is not paywalled.
 
 ## Run locally
 
@@ -38,72 +45,46 @@ Copy names from `.env.example`. You need:
 | `NEXT_PUBLIC_JOBBER_CLIENT_ID` | Optional; connect uses the server id |
 | `JOBBER_WEBHOOK_SECRET` | Optional; Jobber signs webhooks with the client secret |
 | `CRON_SECRET` | Protects `/api/cron/process-followups` |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_ID` | Optional billing in Settings |
 
 Never commit `.env.local`.
 
 ## Database
 
-In the Supabase SQL editor, run `supabase/schema.sql`. That creates `profiles`, `integrations`, and `leads` with row-level security.
+In the Supabase SQL editor, run `supabase/schema.sql` (`profiles`, `integrations`, `leads`, RLS). If you use Settings → Subscribe, also run `supabase/billing.sql`.
 
-Auth → URL configuration: add `http://localhost:3000/auth/callback` (and your production URL later).
+Auth → URL configuration: add `http://localhost:3000/auth/callback` and your production `/auth/callback`.
 
 ## Jobber
 
 In the Jobber developer app:
 
-- OAuth callback: `http://localhost:3000/api/auth/jobber/callback`
+- OAuth callback: `http://localhost:3000/api/auth/jobber/callback` (and the same path on production)
 - Scopes: quotes read, clients read
-- Webhook (needs a public URL, e.g. production or a tunnel): `https://YOUR-DOMAIN/api/webhooks/jobber` for `QUOTE_SENT` (and `QUOTE_APPROVED` / `APP_DISCONNECT` if available)
+- Webhook (public URL only): `https://YOUR-DOMAIN/api/webhooks/jobber` for `QUOTE_SENT` (and `QUOTE_APPROVED` / `APP_DISCONNECT` if listed)
 
-On localhost, use **Import from Jobber** on the dashboard. Jobber cannot reach `localhost` for webhooks.
+On localhost, use **Import from Jobber**. Jobber cannot reach `localhost` for webhooks. If import fails because the login expired, reconnect Jobber — the green “connected” badge is not shown in that case.
 
 ## Email
 
-Until you verify a domain in Resend, sends often only work to the email on your Resend account. Put that address on a test quote first.
+Until you verify a domain in Resend, sends often only work to the email on your Resend account. Put that address on a test quote first. A quote with no client email cannot be sent.
 
-## Deploy (launch)
+## Deploy
 
-Production is Vercel. **Hourly cron may need a paid Vercel plan.** The dashboard still marks quotes due when you open it, so the product works on Hobby without cron.
+Production is Vercel. Cron in `vercel.json` runs daily. The dashboard also marks quotes due when you open it, so Hobby works without relying on cron.
 
-### 1. Put this code on Vercel
+1. Deploy this repo (`main` on GitHub: [nemanja2410/followup-ai](https://github.com/nemanja2410/followup-ai))
+2. Set the same env vars as `.env.example` on Vercel
+3. Supabase Site URL + redirect URLs for production and localhost
+4. Jobber production OAuth callback + webhook
+5. Stripe webhook (if billing): `https://YOUR-DOMAIN/api/webhooks/stripe`
 
-GitHub still has the old app. Either:
+### First real loop
 
-- Ask me to **commit and push** `main`, then import/reconnect [nemanja2410/followup-ai](https://github.com/nemanja2410/followup-ai) in Vercel, or
-- From this folder: `npx vercel --prod` (deploys your local files)
-
-### 2. Environment variables in Vercel
-
-Project → Settings → Environment Variables → add every key from `.env.example` (Production). Use the **same** Supabase project you tested locally. Generate a long random `CRON_SECRET`.
-
-Redeploy after saving env vars.
-
-### 3. Supabase Auth URLs
-
-Authentication → URL configuration:
-
-- Site URL: `https://YOUR-VERCEL-DOMAIN`
-- Redirect URLs:  
-  `https://YOUR-VERCEL-DOMAIN/auth/callback`  
-  `http://localhost:3000/auth/callback`
-
-### 4. Jobber developer app
-
-Add production URLs (keep localhost for local work):
-
-- OAuth callback: `https://YOUR-VERCEL-DOMAIN/api/auth/jobber/callback`
-- Webhook: `https://YOUR-VERCEL-DOMAIN/api/webhooks/jobber`  
-  Topics: `QUOTE_SENT`, plus `QUOTE_APPROVED` and `APP_DISCONNECT` if listed
-
-### 5. First real loop
-
-1. Open the production site, sign in
+1. Sign in on production
 2. Connect Jobber
-3. **Import from Jobber** (or send a quote in Jobber and wait for the webhook)
-4. If the quote is newer than 3 days, it stays **Waiting**. To test **due** immediately, in Supabase set that row’s `quote_sent_at` to four days ago, then refresh the dashboard
+3. Import sent quotes (or wait for the webhook)
+4. Quotes newer than 3 days stay **Waiting**. To test **due**, set `quote_sent_at` four days ago in Supabase, then refresh
 5. Draft follow-up → Send
-6. Status should become **Followed up**
-7. Confirm the email (Resend test sender often only delivers to your Resend login inbox)
-
-Do not add Stripe or auto-send until that loop works once on production.
-
+6. Status becomes **Followed up**
+7. Confirm the inbox (Resend test sender often only delivers to your Resend account email)

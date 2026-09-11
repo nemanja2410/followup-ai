@@ -5,6 +5,7 @@ import {
   LIST_QUOTES_QUERY,
   LIST_QUOTES_QUERY_FALLBACK,
   jobberGraphqlWithRefresh,
+  isJobberAuthFailure,
   loadIntegrationByUserId,
   mapQuoteStatus,
   upsertLeadFromQuote,
@@ -32,7 +33,7 @@ export async function POST() {
 
   const integration = await loadIntegrationByUserId(user.id);
   if (!integration) {
-    return NextResponse.json({ error: "Jobber not connected" }, { status: 401 });
+    return NextResponse.json({ error: "Jobber not connected", reconnect: true }, { status: 401 });
   }
 
   let result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY);
@@ -46,7 +47,10 @@ export async function POST() {
   if (result.json.errors || !quotes) {
     console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
     return NextResponse.json(
-      { error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber" },
+      {
+        error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber",
+        reconnect: isJobberAuthFailure(result) || result.status === 401,
+      },
       { status: 502 }
     );
   }
