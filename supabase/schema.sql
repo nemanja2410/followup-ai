@@ -129,3 +129,9 @@ grant select, insert, update, delete on public.integrations to service_role;
 -- Browser/anon never get table access except through RLS as authenticated
 grant select, insert, update, delete on public.leads to authenticated;
 grant select, insert, update on public.profiles to authenticated;
+
+-- Stripe Billing (optional until you run supabase/billing.sql)
+alter table public.profiles
+  add column if not exists stripe_customer_id text,
+  add column if not exists stripe_subscription_id text,
+  add column if not exists stripe_subscription_status text;

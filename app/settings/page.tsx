@@ -12,6 +12,14 @@ export default function Settings() {
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [billing, setBilling] = useState<{
+    configured: boolean;
+    status: string | null;
+    hasCustomer: boolean;
+    active: boolean;
+  } | null>(null);
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingNote, setBillingNote] = useState<string | null>(null);
 
   useEffect(() => {
     setWebhookUrl(`${window.location.origin}/api/webhooks/jobber`);
@@ -22,6 +30,25 @@ export default function Settings() {
       .then((res) => res.json())
       .then((data) => setJobberConnected(Boolean(data.connected)))
       .catch(() => setJobberConnected(false));
+    fetch("/api/stripe/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error) {
+          setBilling({
+            configured: Boolean(data.configured),
+            status: data.status ?? null,
+            hasCustomer: Boolean(data.hasCustomer),
+            active: Boolean(data.active),
+          });
+        }
+      })
+      .catch(() => setBilling(null));
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("billing") === "success") {
+      setBillingNote("Checkout finished. If billing does not show as active yet, wait a few seconds and refresh.");
+    } else if (params.get("billing") === "cancel") {
+      setBillingNote("Checkout was canceled. Nothing was charged.");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -41,7 +68,7 @@ export default function Settings() {
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Jobber, sending, and webhooks. No billing yet — get one real quote loop working first.
+          Jobber, sending, webhooks, and billing.
         </p>
 
         <section className="mt-8 rounded-xl border border-zinc-200 bg-white p-5">
@@ -94,6 +121,75 @@ export default function Settings() {
             Verify your own domain in Resend so customers actually receive the first send (the test sender often only
             delivers to your Resend inbox).
           </p>
+        </section>
+
+        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
+          <h2 className="text-sm font-medium text-zinc-900">Billing</h2>
+          <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+            Subscribe through Stripe Checkout. Cancel or update your card in the billing portal. The dashboard still
+            works while you are in early access — paying is not required to send follow-ups yet.
+          </p>
+          {billingNote ? <p className="mt-2 text-sm text-zinc-700">{billingNote}</p> : null}
+          {billing?.status ? (
+            <p className="mt-2 text-sm text-zinc-600">
+              Status: <span className="font-medium text-zinc-900">{billing.status}</span>
+            </p>
+          ) : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={billingBusy || billing?.configured === false}
+              onClick={async () => {
+                setBillingBusy(true);
+                try {
+                  const response = await fetch("/api/stripe/checkout", { method: "POST" });
+                  const data = await response.json();
+                  if (data.url) {
+                    window.location.assign(data.url);
+                    return;
+                  }
+                  setBillingNote(data.error || "Could not start checkout.");
+                } catch {
+                  setBillingNote("Network error.");
+                } finally {
+                  setBillingBusy(false);
+                }
+              }}
+              className="min-h-11 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {billingBusy ? "Opening…" : billing?.active ? "Update plan" : "Subscribe"}
+            </button>
+            {billing?.hasCustomer ? (
+              <button
+                type="button"
+                disabled={billingBusy}
+                onClick={async () => {
+                  setBillingBusy(true);
+                  try {
+                    const response = await fetch("/api/stripe/portal", { method: "POST" });
+                    const data = await response.json();
+                    if (data.url) {
+                      window.location.assign(data.url);
+                      return;
+                    }
+                    setBillingNote(data.error || "Could not open billing portal.");
+                  } catch {
+                    setBillingNote("Network error.");
+                  } finally {
+                    setBillingBusy(false);
+                  }
+                }}
+                className="min-h-11 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Manage billing
+              </button>
+            ) : null}
+          </div>
+          {billing?.configured === false ? (
+            <p className="mt-3 text-xs text-zinc-400">
+              Billing is not configured on this server (missing Stripe keys or price).
+            </p>
+          ) : null}
         </section>
 
         <button
