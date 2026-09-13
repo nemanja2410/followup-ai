@@ -271,6 +271,17 @@ export async function clearIntegrationByAccountId(accountId: string) {
     .eq("jobber_account_id", accountId);
 }
 
+export async function markLeadLostByJobberQuoteId(userId: string, jobberQuoteId: string) {
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
+    .from("leads")
+    .update({ status: "lost" })
+    .eq("user_id", userId)
+    .eq("jobber_quote_id", jobberQuoteId);
+
+  return { error: error?.message ?? null };
+}
+
 export type JobberQuote = {
   id?: string;
   quoteNumber?: string;

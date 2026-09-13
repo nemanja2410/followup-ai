@@ -5,6 +5,7 @@ import {
   clearIntegrationByAccountId,
   jobberGraphqlWithRefresh,
   loadIntegrationByAccountId,
+  markLeadLostByJobberQuoteId,
   upsertLeadFromQuote,
 } from "@/lib/jobber";
 
@@ -64,6 +65,23 @@ export async function POST(req: Request) {
     const isQuoteLost =
       topic.includes("QUOTE") &&
       (topic.includes("REJECTED") || topic.includes("ARCHIVED"));
+    const isDestroy = topic === "DESTROY" || topic.endsWith("_DESTROY");
+
+    if (isDestroy) {
+      if (itemId && accountId) {
+        const integration = await loadIntegrationByAccountId(accountId);
+        if (integration) {
+          const outcome = await markLeadLostByJobberQuoteId(integration.user_id, itemId);
+          if (outcome.error) {
+            console.error("Webhook: DESTROY could not close lead", outcome.error);
+            return NextResponse.json({ error: "Lead update failed" }, { status: 500 });
+          }
+        } else {
+          console.error("Webhook: no matching Jobber integration for account", accountId);
+        }
+      }
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
 
     if (!isQuoteSent && !isQuoteApproved && !isQuoteLost) {
       return NextResponse.json({ received: true }, { status: 200 });
