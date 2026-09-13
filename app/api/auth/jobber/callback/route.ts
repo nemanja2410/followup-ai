@@ -70,9 +70,10 @@ export async function GET(request: Request) {
       data.access_token,
       `query { account { id name } }`
     );
-    jobberAccountId =
-      (accountResult.json.data as { account?: { id?: string } } | undefined)?.account?.id ??
-      null;
+    const account = (accountResult.json.data as { account?: { id?: string; name?: string } } | undefined)
+      ?.account;
+    jobberAccountId = account?.id ?? null;
+    const jobberAccountName = account?.name?.trim() || "";
 
     if (!jobberAccountId) {
       console.error("Could not load Jobber account id:", accountResult.json);
@@ -99,6 +100,24 @@ export async function GET(request: Request) {
       return clearAuthCookie(
         NextResponse.redirect(new URL("/dashboard?error=Database_Save_Failed", request.url))
       );
+    }
+
+    if (jobberAccountName) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("business_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile?.business_name?.trim()) {
+        const { error: profileError } = await admin
+          .from("profiles")
+          .update({ business_name: jobberAccountName })
+          .eq("user_id", user.id);
+        if (profileError) {
+          console.error("Could not save Jobber account name to profile:", profileError);
+        }
+      }
     }
 
     return clearAuthCookie(
