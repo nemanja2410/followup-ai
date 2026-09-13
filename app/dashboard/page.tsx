@@ -149,6 +149,8 @@ export default function Dashboard() {
 
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [aiMessage, setAiMessage] = useState("");
+  const [aiSubject, setAiSubject] = useState("");
+  const [aiCta, setAiCta] = useState("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -292,6 +294,8 @@ export default function Dashboard() {
     setIsPanelOpen(true);
     setIsGenerating(true);
     setAiMessage("");
+    setAiSubject("");
+    setAiCta("");
 
     try {
       const response = await fetch("/api/generate", {
@@ -318,6 +322,8 @@ export default function Dashboard() {
       }
 
       setAiMessage(data.message || "Could not generate a draft.");
+      setAiSubject(data.subject || "Following up on your estimate");
+      setAiCta(data.cta || "Reply with a time that works for you");
     } catch {
       setAiMessage("");
       showToast("Could not reach the draft service.", "error");
@@ -342,6 +348,8 @@ export default function Dashboard() {
         body: JSON.stringify({
           leadId: activeLead.id,
           message: aiMessage,
+          subject: aiSubject,
+          cta: aiCta,
         }),
       });
 
@@ -720,18 +728,39 @@ export default function Dashboard() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              <label className="text-xs font-medium text-zinc-500">Message</label>
               {isGenerating ? (
                 <p className="mt-4 text-sm text-zinc-500">Writing a short draft…</p>
               ) : (
-                <textarea
-                  value={aiMessage}
-                  onChange={(e) => setAiMessage(e.target.value)}
-                  className="mt-2 h-56 w-full resize-none rounded-xl border border-zinc-200 bg-[#FBFBF9] p-4 text-sm leading-relaxed text-zinc-800 outline-none focus:border-zinc-400"
-                />
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-zinc-500">Subject</label>
+                    <input
+                      value={aiSubject}
+                      onChange={(e) => setAiSubject(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-zinc-200 bg-[#FBFBF9] px-4 py-2.5 text-sm text-zinc-800 outline-none focus:border-zinc-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-500">Message</label>
+                    <textarea
+                      value={aiMessage}
+                      onChange={(e) => setAiMessage(e.target.value)}
+                      className="mt-2 h-44 w-full resize-none rounded-xl border border-zinc-200 bg-[#FBFBF9] p-4 text-sm leading-relaxed text-zinc-800 outline-none focus:border-zinc-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-500">Button</label>
+                    <input
+                      value={aiCta}
+                      onChange={(e) => setAiCta(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-zinc-200 bg-[#FBFBF9] px-4 py-2.5 text-sm text-zinc-800 outline-none focus:border-zinc-400"
+                    />
+                  </div>
+                </div>
               )}
               <p className="mt-3 text-xs leading-relaxed text-zinc-400">
-                Edit anything that sounds off. Replies go to your FollowUp AI login email, not Jobber.
+                Edit anything that sounds off. The email is sent as a simple branded template. Replies go to your
+                FollowUp AI login email, not Jobber.
               </p>
             </div>
 

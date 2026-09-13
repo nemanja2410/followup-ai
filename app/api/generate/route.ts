@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
+import { parseFollowupDraft } from "@/lib/followup-email";
 
 export async function POST(request: Request) {
   try {
@@ -34,9 +35,14 @@ export async function POST(request: Request) {
         ? `Quote amount: $${quoteValue}`
         : "";
 
-    const prompt = `You are a busy home-service business owner following up on a quote sent through Jobber.
+    const prompt = `You write follow-up emails for a small home-service business (HVAC, plumbing, electrical, and similar). The owner already sent a Jobber estimate and is checking in personally.
 
-Write a concise, natural, polite follow-up email (2-4 sentences). Do not sound like a corporate robot. Write as the sender using "I". Do not include a subject line or sign-off placeholders. Output only the email body.
+Return ONLY valid JSON with these keys:
+- "subject": a professional, specific subject line (no spammy words, no ALL CAPS, no emoji)
+- "body": 2 to 4 short paragraphs, first-person ("I"), warm and direct, not a marketing newsletter. Do not include a subject, sign-off, or button label in the body.
+- "cta": one short, non-pushy button label that asks them to reply (example: "Reply with a time that works")
+
+JSON only. No markdown.
 
 Client Name: ${name}
 ${valueLine}
@@ -65,9 +71,13 @@ Context/Notes: ${notes || "Quote was sent. Checking in to see if they have quest
       throw new Error("Gemini did not return a result.");
     }
 
-    const aiDraft = result.response.text().trim();
+    const draft = parseFollowupDraft(result.response.text().trim());
 
-    return NextResponse.json({ message: aiDraft });
+    return NextResponse.json({
+      message: draft.body,
+      subject: draft.subject,
+      cta: draft.cta,
+    });
   } catch (error: unknown) {
     console.error("Gemini API Error:", error);
 

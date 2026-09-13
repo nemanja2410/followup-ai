@@ -7,6 +7,12 @@ import {
   loadIntegrationByUserId,
   mapQuoteStatus,
 } from "@/lib/jobber";
+import {
+  parseFollowupDraft,
+  renderFollowupHtml,
+  renderFollowupText,
+  resolveCompanyName,
+} from "@/lib/followup-email";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { leadId, message } = await request.json();
+    const { leadId, message, subject: subjectFromClient, cta: ctaFromClient } = await request.json();
 
     if (!leadId || !message) {
       return NextResponse.json(
@@ -94,12 +100,44 @@ export async function POST(request: Request) {
     const from =
       process.env.RESEND_FROM_EMAIL || "FollowUp AI <onboarding@resend.dev>";
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("business_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const draft = parseFollowupDraft(
+      JSON.stringify({
+        subject: typeof subjectFromClient === "string" ? subjectFromClient : "",
+        body: message,
+        cta: typeof ctaFromClient === "string" ? ctaFromClient : "",
+      })
+    );
+    const companyName = resolveCompanyName({
+      businessName: profile?.business_name,
+      fromHeader: from,
+    });
+    const replyEmail = user.email ?? "";
+    const html = renderFollowupHtml({
+      body: draft.body,
+      cta: draft.cta,
+      companyName,
+      replyEmail,
+    });
+    const text = renderFollowupText({
+      body: draft.body,
+      cta: draft.cta,
+      companyName,
+      replyEmail,
+    });
+
     const data = await resend.emails.send({
       from,
       to,
       replyTo: user.email ?? undefined,
-      subject: `Checking in regarding your estimate${lead.client_name ? `, ${lead.client_name}` : ""}`,
-      text: message,
+      subject: draft.subject,
+      text,
+      html,
     });
 
     if (data.error) {
