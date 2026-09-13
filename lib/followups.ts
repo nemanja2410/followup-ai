@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Quotes still `open` after this many hours become `due`. No email is sent. */
+/** Quotes still `open` after this many hours become `due`. Customers are never emailed automatically. */
 export const FOLLOW_UP_AFTER_HOURS = 72;
 
 export function followUpCutoffIso(now = new Date()) {
@@ -19,13 +19,19 @@ export function withDueStatus(status: string, sentAt: string | null | undefined)
   return status;
 }
 
+export type DueLeadRow = {
+  id: string;
+  user_id: string;
+  quote_value: number | null;
+};
+
 export async function markOpenLeadsDue(client: SupabaseClient) {
   const { data, error } = await client
     .from("leads")
     .update({ status: "due" })
     .eq("status", "open")
     .lte("quote_sent_at", followUpCutoffIso())
-    .select("id");
+    .select("id, user_id, quote_value");
 
-  return { count: data?.length ?? 0, error };
+  return { count: data?.length ?? 0, leads: (data ?? []) as DueLeadRow[], error };
 }

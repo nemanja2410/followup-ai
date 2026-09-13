@@ -13,6 +13,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const STATUS_CHANGED_ERROR =
   "This quote was already accepted or declined. Refresh the list — a follow-up is no longer needed.";
 
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -27,18 +31,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const { leadId, email, name, message } = await request.json();
+    const { leadId, message } = await request.json();
 
-    if (!leadId || !email || !message) {
+    if (!leadId || !message) {
       return NextResponse.json(
-        { success: false, error: "Email and message are required." },
+        { success: false, error: "A quote and message are required." },
         { status: 400 }
       );
     }
 
     const { data: lead } = await supabase
       .from("leads")
-      .select("id, status, jobber_quote_id")
+      .select("id, status, jobber_quote_id, client_email, client_name")
       .eq("id", leadId)
       .maybeSingle();
 
@@ -46,6 +50,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: "Quote not found." },
         { status: 404 }
+      );
+    }
+
+    const to = lead.client_email?.trim() ?? "";
+    if (!to || !looksLikeEmail(to)) {
+      return NextResponse.json(
+        { success: false, error: "This quote has no valid email address." },
+        { status: 400 }
       );
     }
 
@@ -84,9 +96,9 @@ export async function POST(request: Request) {
 
     const data = await resend.emails.send({
       from,
-      to: email,
+      to,
       replyTo: user.email ?? undefined,
-      subject: `Checking in regarding your estimate${name ? `, ${name}` : ""}`,
+      subject: `Checking in regarding your estimate${lead.client_name ? `, ${lead.client_name}` : ""}`,
       text: message,
     });
 
@@ -97,7 +109,32 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    const lastFollowedUpAt = new Date().toISOString();
+    const { error: statusError } = await supabase
+      .from("leads")
+      .update({
+        status: "followed_up",
+        last_followed_up_at: lastFollowedUpAt,
+      })
+      .eq("id", lead.id);
+
+    if (statusError) {
+      console.error("Send succeeded but could not mark followed_up:", statusError);
+      return NextResponse.json(
+        {
+          success: true,
+          warning: "Email sent, but the quote status did not update. Refresh the list.",
+          to,
+          last_followed_up_at: lastFollowedUpAt,
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, to, last_followed_up_at: lastFollowedUpAt },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Send email failed:", error);
     return NextResponse.json(

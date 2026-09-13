@@ -28,7 +28,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isProtected = path.startsWith("/dashboard") || path.startsWith("/settings");
+  const isProtected =
+    path.startsWith("/dashboard") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/update-password");
   const isAuthPage = path === "/login" || path === "/register";
 
   const copyCookies = (response: NextResponse) => {

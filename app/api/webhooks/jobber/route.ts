@@ -61,8 +61,11 @@ export async function POST(req: Request) {
 
     const isQuoteSent = topic.includes("QUOTE") && topic.includes("SENT");
     const isQuoteApproved = topic.includes("QUOTE") && topic.includes("APPROVED");
+    const isQuoteLost =
+      topic.includes("QUOTE") &&
+      (topic.includes("REJECTED") || topic.includes("ARCHIVED"));
 
-    if (!isQuoteSent && !isQuoteApproved) {
+    if (!isQuoteSent && !isQuoteApproved && !isQuoteLost) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
@@ -85,20 +88,22 @@ export async function POST(req: Request) {
 
     if (!quote) {
       console.error("Webhook: Jobber quote fetch failed", jobberData.json);
-      return NextResponse.json({ received: true }, { status: 200 });
+      return NextResponse.json({ error: "Quote fetch failed" }, { status: 502 });
     }
 
+    const forceStatus = isQuoteApproved ? "won" : isQuoteLost ? "lost" : "open";
     const outcome = await upsertLeadFromQuote(integration.user_id, quote, {
-      forceStatus: isQuoteApproved ? "won" : "open",
+      forceStatus,
     });
 
     if (outcome.error) {
       console.error("Webhook: lead upsert failed", outcome.error);
+      return NextResponse.json({ error: "Lead upsert failed" }, { status: 500 });
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error("Webhook handler failed:", error);
-    return NextResponse.json({ received: true }, { status: 200 });
+    return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
   }
 }

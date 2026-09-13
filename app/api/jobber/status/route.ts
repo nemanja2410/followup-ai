@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadIntegrationByUserId } from "@/lib/jobber";
+import {
+  JOBBER_PING_QUERY,
+  isJobberAuthFailure,
+  jobberGraphqlWithRefresh,
+  loadIntegrationByUserId,
+} from "@/lib/jobber";
 
 export async function GET() {
   const supabase = await createClient();
@@ -13,8 +18,19 @@ export async function GET() {
   }
 
   const integration = await loadIntegrationByUserId(user.id);
+  if (!integration?.jobber_access_token) {
+    return NextResponse.json({ connected: false });
+  }
 
-  return NextResponse.json({
-    connected: Boolean(integration?.jobber_access_token),
-  });
+  const result = await jobberGraphqlWithRefresh(integration, JOBBER_PING_QUERY);
+  if (isJobberAuthFailure(result) || result.status === 401) {
+    return NextResponse.json({ connected: false, reconnect: true });
+  }
+
+  const accountId = (result.json.data as { account?: { id?: string } } | undefined)?.account?.id;
+  if (!accountId) {
+    return NextResponse.json({ connected: false, reconnect: true });
+  }
+
+  return NextResponse.json({ connected: true });
 }

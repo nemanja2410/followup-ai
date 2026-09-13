@@ -2,14 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
-  LIST_QUOTES_QUERY,
-  LIST_QUOTES_QUERY_FALLBACK,
-  jobberGraphqlWithRefresh,
   isJobberAuthFailure,
+  listJobberQuotes,
   loadIntegrationByUserId,
   mapQuoteStatus,
   upsertLeadFromQuote,
-  type JobberQuote,
 } from "@/lib/jobber";
 
 export async function POST() {
@@ -36,20 +33,14 @@ export async function POST() {
     return NextResponse.json({ error: "Jobber not connected", reconnect: true }, { status: 401 });
   }
 
-  let result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY);
-  if (result.json.errors) {
-    console.error("Jobber sorted query failed, retrying without sort:", result.json.errors);
-    result = await jobberGraphqlWithRefresh(integration, LIST_QUOTES_QUERY_FALLBACK);
-  }
-  const quotes = (result.json.data as { quotes?: { nodes?: JobberQuote[] } } | undefined)?.quotes
-    ?.nodes;
+  const { quotes, result, error } = await listJobberQuotes(integration);
 
-  if (result.json.errors || !quotes) {
-    console.error("Jobber full response:", JSON.stringify(result.json, null, 2));
+  if (error || !result) {
+    console.error("Jobber full response:", JSON.stringify(result?.json, null, 2));
     return NextResponse.json(
       {
-        error: result.json.errors?.[0]?.message || "Could not load quotes from Jobber",
-        reconnect: isJobberAuthFailure(result) || result.status === 401,
+        error: result?.json.errors?.[0]?.message || "Could not load quotes from Jobber",
+        reconnect: result ? isJobberAuthFailure(result) || result.status === 401 : false,
       },
       { status: 502 }
     );

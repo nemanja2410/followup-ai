@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { jobberGraphql } from "@/lib/jobber";
+import {
+  JOBBER_OAUTH_COOKIE,
+  parseJobberOAuthState,
+} from "@/lib/jobber-oauth-state";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const stateUserId = searchParams.get("state");
+  const state = searchParams.get("state");
+  const cookieNonce = (await cookies()).get(JOBBER_OAUTH_COOKIE)?.value ?? null;
 
-  if (!code || !stateUserId) {
-    return NextResponse.redirect(
-      new URL("/dashboard?error=Missing_Code_or_State", request.url)
+  const clearAuthCookie = (response: NextResponse) => {
+    response.cookies.set(JOBBER_OAUTH_COOKIE, "", { path: "/", maxAge: 0 });
+    return response;
+  };
+
+  if (!code || !state) {
+    return clearAuthCookie(
+      NextResponse.redirect(new URL("/dashboard?error=Missing_Code_or_State", request.url))
     );
   }
 
@@ -19,9 +30,9 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || user.id !== stateUserId) {
-    return NextResponse.redirect(
-      new URL("/dashboard?error=Jobber_Auth_Mismatch", request.url)
+  if (!user || !parseJobberOAuthState(state, cookieNonce, user.id)) {
+    return clearAuthCookie(
+      NextResponse.redirect(new URL("/dashboard?error=Jobber_Auth_Mismatch", request.url))
     );
   }
 
@@ -46,8 +57,8 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       console.error("Jobber Token Error:", responseText);
-      return NextResponse.redirect(
-        new URL("/dashboard?error=Jobber_Auth_Failed", request.url)
+      return clearAuthCookie(
+        NextResponse.redirect(new URL("/dashboard?error=Jobber_Auth_Failed", request.url))
       );
     }
 
@@ -85,18 +96,18 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Database Error:", error);
-      return NextResponse.redirect(
-        new URL("/dashboard?error=Database_Save_Failed", request.url)
+      return clearAuthCookie(
+        NextResponse.redirect(new URL("/dashboard?error=Database_Save_Failed", request.url))
       );
     }
 
-    return NextResponse.redirect(
-      new URL("/dashboard?success=Jobber_Connected", request.url)
+    return clearAuthCookie(
+      NextResponse.redirect(new URL("/dashboard?success=Jobber_Connected", request.url))
     );
   } catch (error) {
     console.error("Server Error:", error);
-    return NextResponse.redirect(
-      new URL("/dashboard?error=Server_Error", request.url)
+    return clearAuthCookie(
+      NextResponse.redirect(new URL("/dashboard?error=Server_Error", request.url))
     );
   }
 }

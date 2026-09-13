@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { markOpenLeadsDue } from "@/lib/followups";
+import { FOLLOW_UP_AFTER_HOURS, markOpenLeadsDue } from "@/lib/followups";
 
 type Lead = {
   id: string;
@@ -35,12 +35,53 @@ function daysSince(iso: string | null) {
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
 
+function lastSentLabel(iso: string | null) {
+  const days = daysSince(iso);
+  if (days === null) return "Last sent time unknown";
+  if (days === 0) return "Last sent today";
+  if (days === 1) return "Last sent yesterday";
+  return `Last sent ${days} days ago`;
+}
+
 function ageLabel(iso: string | null) {
   const days = daysSince(iso);
   if (days === null) return "Date unknown";
   if (days === 0) return "Sent today";
   if (days === 1) return "Sent yesterday";
   return `Sent ${days} days ago`;
+}
+
+function followUpDueAt(iso: string | null) {
+  if (!iso) return null;
+  const sent = new Date(iso).getTime();
+  if (Number.isNaN(sent)) return null;
+  return sent + FOLLOW_UP_AFTER_HOURS * 60 * 60 * 1000;
+}
+
+/** Remaining wait until an `open` quote becomes due (72 hours after send). */
+function remainingDueLabel(remainingMs: number) {
+  if (remainingMs <= 0) return "Due now";
+  const remainingDays = Math.floor(remainingMs / 86_400_000);
+  if (remainingDays <= 0) return "Due today";
+  if (remainingDays === 1) return "Due tomorrow";
+  return `Due in ${remainingDays} days`;
+}
+
+function dueCountdownLabel(iso: string | null) {
+  const dueAt = followUpDueAt(iso);
+  if (dueAt === null) return "Due date unknown";
+  return remainingDueLabel(dueAt - Date.now());
+}
+
+function nearestOpenCountdown(openLeads: Lead[]) {
+  let soonest: number | null = null;
+  for (const lead of openLeads) {
+    const dueAt = followUpDueAt(lead.quote_sent_at);
+    if (dueAt === null) continue;
+    if (soonest === null || dueAt < soonest) soonest = dueAt;
+  }
+  if (soonest === null) return "Due date unknown";
+  return remainingDueLabel(soonest - Date.now());
 }
 
 function statusRank(status: string) {
@@ -165,7 +206,7 @@ export default function Dashboard() {
       const response = await fetch("/api/jobber/status");
       const data = await response.json();
       setJobberConnected(Boolean(data.connected));
-      if (!data.connected) setJobberNeedsReconnect(false);
+      setJobberNeedsReconnect(Boolean(data.reconnect) && !data.connected);
     } catch {
       setJobberConnected(false);
     }
@@ -300,8 +341,6 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: activeLead.id,
-          email: activeLead.client_email,
-          name: activeLead.client_name,
           message: aiMessage,
         }),
       });
@@ -314,17 +353,12 @@ export default function Dashboard() {
         return;
       }
       if (response.ok && data.success) {
-        await supabase
-          .from("leads")
-          .update({
-            status: "followed_up",
-            last_followed_up_at: new Date().toISOString(),
-          })
-          .eq("id", activeLead.id);
-
         fetchLeads();
         setIsPanelOpen(false);
-        showToast(`Sent to ${activeLead.client_email}`, "success");
+        showToast(
+          data.warning || `Sent to ${data.to || activeLead.client_email}`,
+          data.warning ? "error" : "success"
+        );
       } else {
         showToast(data.error || "Could not send the email.", "error");
       }
@@ -405,14 +439,16 @@ export default function Dashboard() {
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem]">
               {dueLeads.length > 0
                 ? `${dueLeads.length} quote${dueLeads.length === 1 ? "" : "s"} need a follow-up`
-                : attentionLeads.length > 0
-                  ? "Nothing overdue yet — waiting quotes become due after 3 days"
+                : openLeads.length > 0
+                  ? `${openLeads.length} quote${openLeads.length === 1 ? "" : "s"} waiting — next follow-up ${nearestOpenCountdown(openLeads).toLowerCase()}`
                   : "No quotes waiting"}
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
               {dueLeads.length > 0
                 ? `${money(dueValue)} in estimates has gone quiet. Review a draft, then send.`
-                : "Quotes still waiting after 3 days show up as follow-up due. You always send the email yourself."}
+                : openLeads.length > 0
+                  ? "The 3-day timer is running. Waiting quotes stay here until they are due. You always send the email yourself."
+                  : "Quotes still waiting after 3 days show up as follow-up due. You always send the email yourself."}
             </p>
           </div>
 
@@ -479,7 +515,11 @@ export default function Dashboard() {
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <p className="text-xs font-medium text-zinc-500">Waiting on a reply</p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{openLeads.length}</p>
-            <p className="mt-1 text-xs text-zinc-500">{money(openValue)} still open</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {openLeads.length > 0
+                ? `${money(openValue)} · next ${nearestOpenCountdown(openLeads).toLowerCase()}`
+                : `${money(openValue)} still open`}
+            </p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <p className="text-xs font-medium text-zinc-500">In FollowUp AI</p>
@@ -497,7 +537,12 @@ export default function Dashboard() {
                   }`}
               >
                 Needs attention
-                <span className="ml-1.5 text-zinc-400">{attentionLeads.length}</span>
+                <span className="ml-1.5 text-zinc-400">{dueLeads.length}</span>
+                {openLeads.length > 0 ? (
+                  <span className="ml-1.5 text-xs font-normal text-zinc-400">
+                    · {openLeads.length} waiting
+                  </span>
+                ) : null}
               </button>
               <button
                 onClick={() => setFilter("all")}
@@ -551,7 +596,19 @@ export default function Dashboard() {
                       <td className="px-4 py-3.5 font-medium tabular-nums text-zinc-900">
                         {money(lead.quote_value)}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-600">{ageLabel(lead.quote_sent_at)}</td>
+                      <td className="px-4 py-3.5 text-zinc-600">
+                        <div>{ageLabel(lead.quote_sent_at)}</div>
+                        {lead.status === "open" ? (
+                          <div className="mt-0.5 text-xs font-medium text-zinc-500">
+                            {dueCountdownLabel(lead.quote_sent_at)}
+                          </div>
+                        ) : null}
+                        {lead.status === "followed_up" ? (
+                          <div className="mt-0.5 text-xs font-medium text-zinc-500">
+                            {lastSentLabel(lead.last_followed_up_at)}
+                          </div>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3.5">
                         <StatusPill status={lead.status} />
                       </td>
@@ -642,6 +699,12 @@ export default function Dashboard() {
                   <h2 className="mt-1 text-lg font-semibold text-zinc-900">{activeLead.client_name}</h2>
                   <p className="mt-1 text-sm text-zinc-500">
                     {money(activeLead.quote_value)} · {ageLabel(activeLead.quote_sent_at)}
+                    {activeLead.status === "open"
+                      ? ` · ${dueCountdownLabel(activeLead.quote_sent_at)}`
+                      : ""}
+                    {activeLead.status === "followed_up"
+                      ? ` · ${lastSentLabel(activeLead.last_followed_up_at)}`
+                      : ""}
                   </p>
                   <p className="mt-1 text-sm text-zinc-500">
                     {activeLead.client_email || "Add an email before sending"}

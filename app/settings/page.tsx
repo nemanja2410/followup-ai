@@ -91,7 +91,10 @@ export default function Settings() {
         <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-medium text-zinc-900">Webhook (so you stop clicking Import)</h2>
           <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-            In the Jobber developer app, add this URL for <span className="font-medium text-zinc-700">QUOTE_SENT</span>.
+            In the Jobber developer app, add this URL for{" "}
+            <span className="font-medium text-zinc-700">QUOTE_SENT</span>,{" "}
+            <span className="font-medium text-zinc-700">QUOTE_APPROVED</span>, and{" "}
+            <span className="font-medium text-zinc-700">QUOTE_REJECTED</span> (and archive/disconnect if listed).
             Jobber cannot reach localhost — this only works on your Vercel domain.
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -116,10 +119,20 @@ export default function Settings() {
         <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-medium text-zinc-900">Sending email</h2>
           <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-            Mail goes out through Resend when you click Send. Client replies go to{" "}
+            Mail goes out through Resend when you click Send. The address on the quote in FollowUp AI is the only
+            recipient — it is not taken from the draft form. Client replies go to{" "}
             <span className="font-medium text-zinc-700">{accountEmail || "your login email"}</span>.
-            Verify your own domain in Resend so customers actually receive the first send (the test sender often only
-            delivers to your Resend inbox).
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+            Verify your domain in Resend and set{" "}
+            <span className="font-medium text-zinc-700">RESEND_FROM_EMAIL</span> on the server to that domain (for
+            example <span className="font-medium text-zinc-700">Your Shop &lt;hello@yourshop.com&gt;</span>). The
+            default test sender often only delivers to your Resend account inbox, and customers may ignore it.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+            When waiting quotes become due, FollowUp AI emails{" "}
+            <span className="font-medium text-zinc-700">{accountEmail || "your login email"}</span> so you know to
+            open the dashboard. It does not email your customers for you.
           </p>
         </section>
 

@@ -33,10 +33,7 @@ export const GET_QUOTE_QUERY = `
   }
 `;
 
-export const LIST_QUOTES_QUERY = `
-  query ListQuotes {
-    quotes(first: 50, sort: { key: CREATED_AT, direction: DESCENDING }) {
-      nodes {
+const QUOTE_LIST_FIELDS = `
         id
         quoteNumber
         quoteStatus
@@ -51,33 +48,33 @@ export const LIST_QUOTES_QUERY = `
             address
           }
         }
-      }
+`;
+
+export const LIST_QUOTES_QUERY = `
+  query ListQuotes($cursor: String) {
+    quotes(first: 50, after: $cursor, sort: { key: CREATED_AT, direction: DESCENDING }) {
+      nodes { ${QUOTE_LIST_FIELDS} }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 export const LIST_QUOTES_QUERY_FALLBACK = `
-  query ListQuotes {
-    quotes(first: 50) {
-      nodes {
-        id
-        quoteNumber
-        quoteStatus
-        sentAt
-        createdAt
-        amounts { total }
-        client {
-          name
-          firstName
-          lastName
-          emails {
-            address
-          }
-        }
-      }
+  query ListQuotes($cursor: String) {
+    quotes(first: 50, after: $cursor) {
+      nodes { ${QUOTE_LIST_FIELDS} }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
+
+export const JOBBER_PING_QUERY = `
+  query PingJobber {
+    account { id }
+  }
+`;
+
+const MAX_QUOTE_PAGES = 20;
 
 type GraphqlResult = {
   status: number;
@@ -193,6 +190,44 @@ export async function jobberGraphqlWithRefresh(
   }
 
   return result;
+}
+
+type QuotesConnection = {
+  nodes?: JobberQuote[];
+  pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+};
+
+export async function listJobberQuotes(integration: JobberIntegration) {
+  let query = LIST_QUOTES_QUERY;
+  const quotes: JobberQuote[] = [];
+  let cursor: string | null = null;
+  let lastResult: GraphqlResult | null = null;
+
+  for (let page = 0; page < MAX_QUOTE_PAGES; page += 1) {
+    let result = await jobberGraphqlWithRefresh(
+      integration,
+      query,
+      cursor ? { cursor } : {}
+    );
+    if (result.json.errors && query === LIST_QUOTES_QUERY) {
+      console.error("Jobber sorted query failed, retrying without sort:", result.json.errors);
+      query = LIST_QUOTES_QUERY_FALLBACK;
+      result = await jobberGraphqlWithRefresh(integration, query, cursor ? { cursor } : {});
+    }
+    lastResult = result;
+    const connection = (result.json.data as { quotes?: QuotesConnection } | undefined)?.quotes;
+    const nodes = connection?.nodes;
+    if (result.json.errors || !nodes) {
+      return { quotes, result, error: true };
+    }
+    quotes.push(...nodes);
+    if (!connection?.pageInfo?.hasNextPage || !connection.pageInfo.endCursor) {
+      return { quotes, result, error: false };
+    }
+    cursor = connection.pageInfo.endCursor;
+  }
+
+  return { quotes, result: lastResult!, error: false };
 }
 
 export async function loadIntegrationByUserId(userId: string) {
